@@ -1,0 +1,46 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, total={6in, 8in}, margin = 3cm]{geometry}
+\usepackage[english]{babel}
+\usepackage{authblk}
+\usepackage{enumitem}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{natbib}
+
+\title{\textbf{Bayesian smoothing via second order random walk model}}
+
+\author{
+Ziang Zhang \\ \vspace{-0.3cm}\normalsize\texttt{aguero.zhang@mail.utoronto.ca}\\ 
+\large
+\vspace{0.5cm}
+Supervisor(s): James Stafford, Patrick Brown \\ 
+
+\vspace{0.5cm}
+Department of Statistical Sciences \\
+University of Toronto
+}
+
+\date{June 2021}
+
+\onehalfspacing
+
+\begin{document}
+\maketitle
+
+Smoothing methods are advantageous when there is little information on the structures of some covariate effects. Common smoothing methods are mostly based on the application of spline functions, such as regression splines, smoothing splines and penalizing regression splines (P-splines). The main target of these methods is to provide enough flexibility for the functional form without over-fitting the observed data. Typically this trade off is controlled by a smoothing parameter $\sigma$, which penalizes the function for being too wiggly. In typical frequentist method, the smoothing parameter $\sigma$ is either taken as fixed value input by the users, or substituted by an optimal value selected from procedure such as cross validation. Because of such treatment, appropriate selection and interpretation of the hyper-parameter are hard in frequentist based methods. On the other hand, the hyperparameter $\sigma$ will be assigned with a prior distribution in Bayesian smoothing methods, and hence any uncertainty involved with that parameter will be taken into account for the inference. Furthermore, the development of approximate Bayesian inference methods such as \cite{inla} enables Bayesian smoothing to be implemented in a computationally convenient way. Hence, Bayesian smoothing method can often be very useful.
+
+Based on the well known connection between smoothing splines and integrated Wiener processes \citep{wahba}, \cite{rw2} developed a Bayesian smoothing method by assigning second order random walk priors (RW2) to the unknown true effect functions. Their method can be viewed as a discretized approximation to the second integrated Wiener process, using a finite element method called Galerkin approximation. The hyperparameter $\sigma$ represents the standard deviation parameter to the second derivative of the effect function, and will be assigned with proper prior distribution. Because of the use Galerkin approximation, the resulting prior distribution for the effect function will have a sparse precision matrix, and will yield efficient computation if used together with approximate Bayesian inference method such as Integrated Nested Laplace Approximation (INLA) \citep{inla}. Both theoretical results and simulation results are proved for their Galerkin approximation methods.
+
+In this report, we will give a thorough overview for Bayesian smoothing methods, and a detailed description of the RW2 method proposed in \cite{rw2}. Through extensive simulation studies, we will demonstrate both the advantages and the disadvantages of the RW2 method compared to existing methods such as Bayesian P splines and Bayesian regression splines. Finally, we will discuss the potential extensions and generalizations of the RW2.
+
+\newpage
+\bibliographystyle{apalike}
+\bibliography{references}
+
+
+
+
+\end{document}
