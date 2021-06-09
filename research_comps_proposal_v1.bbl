@@ -1,5 +1,11 @@
 \begin{thebibliography}{}
 
+\bibitem[Lang and Brezger, 2004]{bayesianPsplines}
+Lang, S. and Brezger, A. (2004).
+\newblock Bayesian p-splines.
+\newblock {\em Journal of Computational and Graphical Statistics},
+  13(1):183--212.
+
 \bibitem[Lindgren and Rue, 2008]{rw2}
 Lindgren, F. and Rue, H. (2008).
 \newblock On the second-order random walk model for irregular locations.
