@@ -1,0 +1,27 @@
+\begin{thebibliography}{}
+
+\bibitem[Brown and {De Jong}, 2001]{ARIMA}
+Brown, P. and {De Jong}, P. (2001).
+\newblock Nonparametric smoothing using state space techniques.
+\newblock {\em Canadian Journal of Statistics}, 29(1):37--50.
+
+\bibitem[Lindgren and Rue, 2008]{rw2}
+Lindgren, F. and Rue, H. (2008).
+\newblock On the second-order random walk model for irregular locations.
+\newblock {\em Scandinavian Journal of Statistics}, 35(4):691--700.
+
+\bibitem[Rue et~al., 2009]{inla}
+Rue, H., Martino, S., and Chopin, N. (2009).
+\newblock Approximate bayesian inference for latent gaussian models by using
+  integrated nested laplace approximations.
+\newblock {\em Journal of the Royal Statistical Society: Series B (Statistical
+  Methodology)}, 71(2):319--392.
+
+\bibitem[Wahba, 1978]{wahba}
+Wahba, G. (1978).
+\newblock Improper priors, spline smoothing and the problem of guarding against
+  model errors in regression.
+\newblock {\em Journal of the Royal Statistical Society. Series B
+  (Methodological)}, 40(3):364--372.
+
+\end{thebibliography}

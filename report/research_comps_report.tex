@@ -1,0 +1,100 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, total={6in, 8in}, margin = 3cm]{geometry}
+\usepackage[english]{babel}
+\usepackage{authblk}
+\usepackage{enumitem}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{setspace}
+\usepackage{natbib}
+\usepackage{todonotes} % for comments
+
+
+\newcommand{\ziang}{\textcolor{blue}}
+
+
+\title{\textbf{Bayesian smoothing with extended second order random walk model: An detailed overview and comparison}}
+
+\author{
+Ziang Zhang \\ \vspace{-0.3cm}\normalsize\texttt{aguero.zhang@mail.utoronto.ca}\\ 
+\large
+\vspace{0.5cm}
+Supervisor(s): James Stafford, Patrick Brown \\ 
+
+\vspace{0.5cm}
+Department of Statistical Sciences \\
+University of Toronto
+}
+
+\date{June 2021}
+
+\onehalfspacing
+
+\begin{document}
+
+
+\maketitle
+
+\tableofcontents
+
+\newpage
+
+\begin{abstract}
+In this report, we will describe and implement the extended second order random walk model proposed in \cite{rw2}. This method can be viewed as an extension of the formerly used second order random walk model to irregular spaced locations/knots, derived from discretizing a stochastic differential equation. We will compare this method with other Bayesian smoothing spline methods, both conceptually and practically. This report will provide practitioners with a more thorough understanding of the connection between the second order random walk model and other Bayesian smoothing methods, and a practical guideline on how to choose among these methods.
+\end{abstract}
+
+
+
+
+\section{Introduction}\label{intro}
+
+Smoothing methods are often used when there is little information on the functional structures of some covariate effects. The main challenging of smoothing is to provide enough flexibility so that the functional form of covariate effect can be accurately inferred without over-fitting the observed data. In smoothing spline method, this trade off is controlled by a smoothing parameter $\lambda$, which penalizes the wiggliness of inferred function. 
+
+Consider a data set $\{y_i,x_i, i\in [n]\}$, and a nonparametric model $y_i = g(x_i) + \epsilon_i$ where $\epsilon_i \overset{iid}\sim N(0,\sigma_\epsilon^2)$ and $x_i \in [a,b]$, then the smoothing spline aims to solve the following problem:
+\begin{equation}\label{equ:ss}
+\arg\min_{g\in C^2} \bigg\{ \sum_i\bigg(y_i-g(x_i)\bigg)^2 + \lambda\int_a^b g''(x)^2 dx \bigg\}
+\end{equation}
+The sum of square term on the left can be replaced by negative log likelihood, which is also called penalized likelihood method.
+
+In typical frequentist method, the smoothing parameter $\lambda$ is either taken as fixed value input by the users, or substituted by an optimal value selected from procedure such as REML. Therefore, how to take into account the uncertainty with the unknown hyper-parameter increases the difficulty of frequentist smoothing methods. On the other hand, the hyper-parameter $\lambda$ will be assigned with a prior distribution in Bayesian smoothing methods, and hence any uncertainty involved with that parameter will be taken into account for the inference. Furthermore, the development of approximate Bayesian inference methods such as \cite{inla} enables Bayesian smoothing to be implemented in a computationally convenient way. Hence, application of Bayesian smoothing method can be advantageous in a lot of settings.
+
+
+Based on the well known connection between smoothing splines and integrated Wiener processes \citep{wahba}, \cite{rw2} developed a Bayesian smoothing method by assigning a stochastic differential equation (SDE) based prior to the unknown true effect functions. 
+Their method uses a finite element method called Galerkin approximation to the SDE, and then solves for its weak solution. Therefore, the method of \cite{inla} can be viewed as an extension of the second order random walk model (RW2) to irregular spaced locations.
+The hyper-parameter $\sigma_s$ which is defined as $\sigma_s \propto 1/\lambda$, represents the standard deviation parameter of the second derivative of the covariate effect function, and will be assigned with a proper prior distribution. Because of the use of numerical approximation, the resulting prior distribution for the effect function will have a sparse precision matrix, and hence will be computationally efficient if used together with approximate Bayesian inference method such as Integrated Nested Laplace Approximation (INLA) \citep{inla}. Both theoretical results and simulation results have been demonstrated for their Galerkin approximation methods in their original paper \citep{rw2}.
+
+
+In section \ref{SmoothSpline}, we will describe how is smoothing spline typically fitted in Frequentist method, and how it can be reinterpreted as an equivalent Bayesian inference problem with ARIMA prior when locations are equally spaced \citep{ARIMA}. In section \ref{rw2}, we will introduce the extended second order random walk method proposed in \cite{rw2}, and provide conceptual comparison and connection with the the exact method using ARIMA method. Furthermore, we will write the ARIMA method in the form of a similar SDE specification, and hence generalize the ARIMA method to irregular spaced locations and enhances its computational efficiency. In section \ref{simulation}, we will implement several simulation studies to illustrate the differences between all the mentioned Bayesian smoothing spline methods, in aspects of prior sensitivity, inference accuracy and computational efficiency. We conclude in section \ref{conclusion} with a discussion.
+
+
+\section{Smoothing Spline}\label{SmoothSpline}
+
+\subsection{Fitting Smoothing Spline}
+Consider the smoothing parameter $\lambda$ in equation \ref{equ:ss} is a fixed constant, the solution to equation \ref{equ:ss}, denoted as $\hat{g}_\lambda$, is well known to be a cubic polynomial spline when the response variable $\boldsymbol{y}:= (y_1, y_2, ..., y_n)^T \in \mathbb{R}^n$ cannot be perfectly interpolated by a lower order polynomial function. 
+
+
+\subsection{Bayesian Smoothing Spline with ARIMA Model}
+\ziang{Explain why the smoothing spline can be equivalently solved as a Bayesian inference problem with ARIMA prior on the evaluation vector, when knots are equally spaced.}
+\section{Extended Second Order Random Walk Method To Smoothing Spline}\label{rw2}
+\ziang{This will be the main section in this report. Here I will introduce the methodology in that 2008 rw2 paper in details, and provide conceptual comparison and connection with the exact method using ARIMA method.}
+\subsection{Prior Based On Stochastic Differential Equation}
+\ziang{In this section, I will describe the connection between the folded Wiener's process prior defined by stochastic differential equation and the smoothing spline problem. Also, I will explain how is this connection related to Grace Wahba's conclusion in her smoothing spline paper.}
+\subsection{Finite Element Method and Weak Solution}
+\ziang{In this section, I will provide the context of the methodology in that 2008 rw2 paper. Specifically, I will introduce the notions such as basis functions, test functions, and finite element methods such as Bubnov-Galerkin approximation and Petrov-Galerkin approximation.}
+\subsection{The Extended Second Order Random Walk Method}
+\ziang{In this section, I will describe how the extended second order random walk method is derived using the Bubnov-Galerkin approximation with linear spline basis, and how it is further simplified by applying a diagonal approximation to the covariance matrix. Furthermore, I will describe how to apply the same finite element method with a different choice of basis function to get the generalization of the ARIMA method.}
+\section{Practical Comparison}\label{simulation}
+\ziang{In this section, I will provide several simulation studies to illustrate the differences between all the mentioned Bayesian smoothing spline methods, in aspects of prior sensitivity, inference accuracy and computational efficiency.}
+\section{Conclusion}\label{conclusion}
+\ziang{Summarizes the conceptual/practical findings from section 3 and 4.}
+
+\newpage
+\bibliographystyle{apalike}
+\bibliography{references}
+
+
+
+
+\end{document}

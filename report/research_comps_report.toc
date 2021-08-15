@@ -1,0 +1,11 @@
+\babel@toc {english}{}
+\contentsline {section}{\numberline {1}Introduction}{2}
+\contentsline {section}{\numberline {2}Smoothing Spline}{3}
+\contentsline {subsection}{\numberline {2.1}Fitting Smoothing Spline}{3}
+\contentsline {subsection}{\numberline {2.2}Bayesian Smoothing Spline with ARIMA Model}{3}
+\contentsline {section}{\numberline {3}Extended Second Order Random Walk Method To Smoothing Spline}{3}
+\contentsline {subsection}{\numberline {3.1}Prior Based On Stochastic Differential Equation}{3}
+\contentsline {subsection}{\numberline {3.2}Finite Element Method and Weak Solution}{3}
+\contentsline {subsection}{\numberline {3.3}The Extended Second Order Random Walk Method}{4}
+\contentsline {section}{\numberline {4}Practical Comparison}{4}
+\contentsline {section}{\numberline {5}Conclusion}{4}
