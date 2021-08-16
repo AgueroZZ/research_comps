@@ -72,7 +72,26 @@ In section \ref{SmoothSpline}, we will describe how is smoothing spline typicall
 \section{Smoothing Spline}\label{SmoothSpline}
 
 \subsection{Fitting Smoothing Spline}
-Consider the smoothing parameter $\lambda$ in equation \ref{equ:ss} is a fixed constant, the solution to equation \ref{equ:ss}, denoted as $\hat{g}_\lambda$, is well known to be a cubic polynomial spline when the response variable $\boldsymbol{y}:= (y_1, y_2, ..., y_n)^T \in \mathbb{R}^n$ cannot be perfectly interpolated by a lower order polynomial function. 
+Consider the smoothing parameter $\lambda$ in equation \ref{equ:ss} is a fixed constant, the solution to equation \ref{equ:ss}, denoted as $\hat{g}_\lambda(.)$, is well known to be a natural cubic polynomial spline when the response variable $\boldsymbol{y}:= (y_1, y_2, ..., y_n)^T \in \mathbb{R}^n$ cannot be perfectly interpolated by a lower order polynomial function. For any function $g$, let $\boldsymbol{g} := (g(x_1), ..., g(x_n))^T \in \mathbb{R}^n$ denotes the corresponding evaluation vector, 
+then the solution cubic spline $\hat{g}_\lambda(.)$ can be uniquely determined based on its evaluation vector $\boldsymbol{\hat{g}_\lambda}$ \citep{smoothingspline}. 
+
+
+
+Using the property of natural cubic spline, the term $\int_a^b g''(x)^2 dx$ for any natural cubic spline $g(.)$ can be written as $\boldsymbol{g}^T K \boldsymbol{g}$, where the matrix $K$ only depends on the covariate locations $\boldsymbol{x} := (x_1, ..., x_n)^T \in \mathbb{R}^n$, not on the response variable $\boldsymbol{y}$. Therefore, the equation \ref{equ:ss} in section \ref{intro} can be written in the following vector form:
+\begin{equation}
+\arg\min_{\boldsymbol{g}\in \mathbb{R}^n}(\boldsymbol{y} - \boldsymbol{g})^T (\boldsymbol{y} - \boldsymbol{g}) + \lambda \boldsymbol{g}^T K \boldsymbol{g}.
+\end{equation}
+Since this function is convex in $\boldsymbol{g}$, taking derivative and setting it to zero yields the evaluation vector $\boldsymbol{\hat{g}_\lambda} = (I+\lambda K)^{-1} \boldsymbol{y}$. Hence the solution function can be recovered from this evaluation vector. 
+
+The above procedures all treat the single smoothing parameter $\lambda$ as a fixed constant. In practice, there are two common ways to select the value of $\lambda$: selecting a constant based on the subjective belief on the required smoothness of the fitted function or estimating its value based on the observed data \citep{smoothingspline}. 
+
+If one decides to estimate the smoothing parameter using the same set of data, methods such as cross-validation (CV), generalized cross-validation(GCV) or restricted maximum likelihood estimation (REML) can be used. When computing quantities such as confidence intervals and standard errors, traditional frequentist approaches will directly plug in the estimate of $\lambda$ and treat it as a known value. Therefore the traditional frequentist inference methods will tend to underestimate the variability, because they ignore the additional uncertainty from the estimation of $\lambda$.
+
+
+
+
+
+
 
 
 \subsection{Bayesian Smoothing Spline with ARIMA Model}
