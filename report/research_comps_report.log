@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  15 AUG 2021 12:00
+This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.4.16)  19 AUG 2021 14:14
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -559,20 +559,20 @@ File: tikzlibrarypositioning.code.tex 2008/10/06 v3.0.1a (rcs-revision 1.7)
 ) (./research_comps_report.aux)
 \openout1 = `research_comps_report.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
-LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 35.
-LaTeX Font Info:    ... okay on input line 35.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
+LaTeX Font Info:    Checking defaults for TU/lmr/m/n on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 36.
+LaTeX Font Info:    ... okay on input line 36.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: xetex
@@ -625,18 +625,20 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
  [1
 
 ] [2]
-Overfull \hbox (9.06773pt too wide) in paragraph at lines 80--80
+[3] [4] [5]
+Overfull \hbox (9.06773pt too wide) in paragraph at lines 160--160
 []\TU/lmr/bx/n/14.4 Extended Second Order Random Walk Method To Smooth-
  []
 
-[3] [4] (./research_comps_report.bbl) [5] (./research_comps_report.aux) ) 
+[6] [7] [8] [9] [10] [11] (./research_comps_report.bbl) [12]
+(./research_comps_report.aux) ) 
 Here is how much of TeX's memory you used:
- 14195 strings out of 492970
- 275075 string characters out of 6133938
- 342997 words of memory out of 5000000
- 17902 multiletter control sequences out of 15000+600000
- 8192 words of font info for 43 fonts, out of 8000000 for 9000
+ 14239 strings out of 492970
+ 275933 string characters out of 6133938
+ 352330 words of memory out of 5000000
+ 17938 multiletter control sequences out of 15000+600000
+ 8224 words of font info for 47 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 62i,6n,56p,1005b,284s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 62i,17n,56p,1005b,284s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on research_comps_report.pdf (5 pages).
+Output written on research_comps_report.pdf (12 pages).

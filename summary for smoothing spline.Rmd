@@ -129,7 +129,7 @@ B = \begin{bmatrix}
 \end{aligned}
 \end{equation}
 
-Therefore, combine the two vectorized equations, we know that $\boldsymbol w$ will prior distribution being Gaussian with zero mean and precision matrix $\frac{1}{\sigma_s^2}H^TB^{-1}H$. As noted in \cite{lindgren2008second}, this Galerkin \textit{approximation} is actually exact, except for the boundaries. This can also be found from the fact that $H$ matrix after removing its first and last row is the $Q$ matrix from \cite{brown2001nonparametric}, and the $B$ matrix after removing its first and last rows and columns is the $R$ matrix from \cite{brown2001nonparametric}.
+Therefore, combine the two vectorized equations, we know that $\boldsymbol w$ will have prior distribution being Gaussian with zero mean and precision matrix $\frac{1}{\sigma_s^2}H^TB^{-1}H$. As noted in \cite{lindgren2008second}, this Galerkin \textit{approximation} is actually exact, except for the boundaries. This can also be found from the fact that $H$ matrix after removing its first and last row is the $Q$ matrix from \cite{brown2001nonparametric}, and the $B$ matrix after removing its first and last rows and columns is the $R$ matrix from \cite{brown2001nonparametric}.
 
 
 ### Diagonal Approximation
