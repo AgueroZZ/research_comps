@@ -10,6 +10,8 @@ library(aghq)
 #### Assuming true sigma is known to be 1
 n <- 500
 x <- seq(0.1,50, by = 0.1)
+a <- min(x)
+b <- max(x)
 y <- 5*sin(0.5*x) + rnorm(n, sd = 1)
 d <- diff(x)
 X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
@@ -95,17 +97,43 @@ quad <- aghq::marginal_laplace_tmb(ff,7,0)
 logpostsigma <- compute_pdf_and_cdf(quad$marginals[[1]],list(totheta = function(x) -2*log(x),fromtheta = function(x) exp(-x/2)))
 with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
 
+# Use evaluation vector to reconstruct the fitted function:
+construct_fitted <- function(weights){
+  knots <- x
+  splineFunc <- splines::bs(location_interest, degree = 1, knots = knots)
+  fitted_func <- splineFunc[,-(length(knots) + 1)] %*% matrix(weights, ncol = 1)
+  as.numeric(fitted_func)
+}
+
+
 
 # Inference for W
 samps1 <- sample_marginal(quad,1e03)
+resolution = 0.001
+location_interest <- seq(a,b, by = resolution)
+fitted_func <- construct_fitted(weights = samps1$samps[,1])
+plot(fitted_func~location_interest, col = "blue", type = "l")
+
+# Construct samples for g(.):
+sample_func <- apply(samps1$samps, MARGIN = 2, FUN = construct_fitted)
+
+
+
+
 # Posterior mean
 W1 <- apply(samps1$samps,1,mean)
+mean_func <- apply(sample_func,1,mean)
+
+### Plot:
+plot(mean_func~location_interest, col = "blue", type = "l")
+for (i in sample.int(1000,50)) {
+  lines(sample_func[,i] ~ location_interest, col = "grey")
+}
 
 
 
 
-
-#### Approach 2: Using RW2 model without Diaognal Approximation
+#### Approach 2: Using RW2 model without Diagonal Approximation
 Q2 <- t(H) %*% solve(B) %*% H
 Q2 <- as(as.matrix(Q2 + Diagonal(n, x = 0.0001)), "dgTMatrix")
 
@@ -148,8 +176,26 @@ with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
 
 # Inference for W
 samps2 <- sample_marginal(quad,1e03)
+resolution = 0.001
+location_interest <- seq(a,b, by = resolution)
+fitted_func <- construct_fitted(weights = samps2$samps[,1])
+plot(fitted_func~location_interest, col = "blue", type = "l")
+
+# Construct samples for g(.):
+sample_func <- apply(samps2$samps, MARGIN = 2, FUN = construct_fitted)
+
+
+
+
 # Posterior mean
 W2 <- apply(samps2$samps,1,mean)
+mean_func <- apply(sample_func,1,mean)
+
+### Plot:
+plot(mean_func~location_interest, col = "blue", type = "l")
+for (i in sample.int(1000,50)) {
+  lines(sample_func[,i] ~ location_interest, col = "grey")
+}
 
 
 
@@ -200,8 +246,36 @@ with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
 
 # Inference for W
 samps3 <- sample_marginal(quad,1e03)
-# Posterior mean
-W3 <- apply(samps2$samps,1,mean)
+W3 <- apply(samps3$samps,1,mean)
+
+
+construct_fitted_cubic <- function(weights){
+  spline_fitted <- spline(x, y = weights, xout = location_interest, method = "natural",
+                          xmin = min(x), xmax = max(x), ties = mean)
+  spline_fitted$y
+}
+
+
+
+
+######## Cubic way:
+sample_func_cubic <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted_cubic)
+mean_func_cubic <- apply(sample_func_cubic,1,mean)
+### Plot:
+plot(mean_func_cubic~location_interest, col = "blue", type = "l")
+for (i in sample.int(1000,50)) {
+  lines(sample_func_cubic[,i] ~ location_interest, col = "grey")
+}
+
+
+######## Linear way:
+sample_func <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted)
+mean_func <- apply(sample_func,1,mean)
+### Plot:
+plot(mean_func~location_interest, col = "blue", type = "l")
+for (i in sample.int(1000,50)) {
+  lines(sample_func[,i] ~ location_interest, col = "grey")
+}
 
 
 

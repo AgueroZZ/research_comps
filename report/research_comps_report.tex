@@ -201,7 +201,7 @@ In \cite{rw2}, the authors proposed an extension of the commonly used Second Ord
 \begin{equation}\label{oldrw2}
 f(\boldsymbol{g}) = \frac{1}{\sigma_s^{(n-2)}} \exp \bigg( -\frac{1}{2 \sigma_s^2} \sum_{i=1}^{n-2} (g(x_i) - 2g(x_{i+1}) + g(x_{i+2}))^2 \bigg).
 \end{equation}
-This type of model is called second order \textit{Gaussian Markov random fields} (IGMRF), because it is invariant to the addition of polynomials with order less than two \citep{rue2005gaussian}. The RW2 model is computationally efficient to be used in approximate Bayesian inference method, since it can be rewritten as the following:
+This type of model is called second order \textit{Intrinsic Gaussian Markov random fields} (IGMRF), because it is invariant to the addition of polynomials with order less than two \citep{rue2005gaussian}. The RW2 model is computationally efficient to be used in approximate Bayesian inference method, since it can be rewritten as the following:
 \begin{equation}\label{alter-oldrw2}
 f(\boldsymbol{g}) = \frac{1}{\sigma_s^{(n-2)}} \exp \bigg( -\frac{1}{2} \boldsymbol{g}^T Q \boldsymbol{g}  \bigg),
 \end{equation}
@@ -250,7 +250,7 @@ B = \mbox{\scriptsize $\begin{bmatrix}
 \end{equation}
 As noted in \cite{rw2}, this Galerkin \textit{approximation} is actually exact, except for the boundaries. This can also be found from the fact that $H$ matrix after removing its first and last row is the $D$ matrix from \cite{ARIMA}, and the $B$ matrix after removing its first and last rows and columns is the $R$ matrix from \cite{ARIMA}.
 
-The use of Galerkin approximation as in \cite{rw2} will result in $\boldsymbol w$ having precision matrix $H^TB^{-1}H$. Since $B$ matrix is tridiagonal, this precision matrix will be dense, and hence not applicable in INLA-typed inference method \citep{inla}. To handle this dense precision matrix problem, \cite{rw2} proposes the use of a diagonal approximation $A$, to the covariance matrix $B$. This diagonal approximation $A$ can be gotten by distributing the off-diagonal values in $B$ to its main diagonal, which has been shown in \citep{rw2} to have small long-term effect in the final precision matrix.
+The use of Galerkin approximation as in \cite{rw2} will result in $\boldsymbol w$ having precision matrix $H^TB^{-1}H$. Since $B$ matrix is tri-diagonal, this precision matrix will be dense, and hence not applicable in INLA-typed inference method \citep{inla}. To handle this dense precision matrix problem, \cite{rw2} proposes the use of a diagonal approximation $A$, to the covariance matrix $B$. This diagonal approximation $A$ can be gotten by distributing the off-diagonal values in $B$ to its main diagonal, which has been shown in \citep{rw2} to have small long-term effect in the final precision matrix.
 
 Specifically in the unit-spaced case above, the covariance matrix $B$ is approximated by the diagonal matrix A defined as following:
 \begin{equation}
@@ -314,6 +314,12 @@ In this section, we will provide some practical examples and comparisons between
 
 
 \ziang{In this section, I will provide several simulation studies to illustrate the differences between all the mentioned Bayesian smoothing spline methods, in aspects of prior sensitivity, inference accuracy and computational efficiency.}
+
+
+
+
+
+
 \section{Conclusion}\label{conclusion}
 \ziang{Summarizes the conceptual/practical findings from section 3 and 4.}
 
