@@ -67,7 +67,7 @@ Their method uses a finite element method called Galerkin approximation to the S
 The hyper-parameter $\sigma_s$ which is defined as $\sigma_s \propto 1/\lambda$, represents the standard deviation parameter of the second derivative of the covariate effect function, and will be assigned with a proper prior distribution. Because of the use of numerical approximation, the resulting prior distribution for the effect function will have a sparse precision matrix, and hence will be computationally efficient if used together with approximate Bayesian inference method such as Integrated Nested Laplace Approximation (INLA) \citep{inla}. Both theoretical results and simulation results have been demonstrated for their Galerkin approximation methods in their original paper \citep{rw2}.
 
 
-In section \ref{SmoothSpline}, we will describe how is smoothing spline typically fitted in Frequentist method, and how it can be reinterpreted as an equivalent Bayesian inference problem with ARIMA prior when locations are equally spaced \citep{ARIMA}. In section \ref{rw2}, we will introduce the extended second order random walk method proposed in \cite{rw2}, and provide conceptual comparison and connection with the the exact method using ARIMA method. Furthermore, we will write the ARIMA method in the form of a similar SDE specification, and hence generalize the ARIMA method to irregular spaced locations and enhances its computational efficiency. In section \ref{simulation}, we will implement several simulation studies to illustrate the differences between all the mentioned Bayesian smoothing spline methods, in aspects of prior sensitivity, inference accuracy and computational efficiency. We conclude in section \ref{conclusion} with a discussion.
+In section \ref{SmoothSpline}, we will describe how is smoothing spline typically fitted in Frequentist method, and how it can be reinterpreted as an equivalent Bayesian inference problem with ARIMA prior when locations are equally spaced \citep{ARIMA}. In section \ref{rw2}, we will introduce the extended second order random walk method proposed in \cite{rw2}, and provide conceptual comparison and connection with the the exact method using ARIMA method. Furthermore, we will write the ARIMA method in the form of a similar SDE specification, and hence generalize the ARIMA method to irregular spaced locations and enhances its computational efficiency. In section \ref{practice}, we will implement several simulation studies to illustrate the differences between all the mentioned Bayesian smoothing spline methods, in aspects of prior sensitivity, inference accuracy and computational efficiency. We conclude in section \ref{conclusion} with a discussion.
 
 
 \section{Smoothing Spline}\label{SmoothSpline}
@@ -307,9 +307,35 @@ Unlike the posterior for the smoothing parameter $\theta$, we will not compute t
 
 Note that the method of \cite{tierney1986accurate} requires the prior to have a non-singular precision matrix, but the precision matrix $Q_\theta$ for all the Bayesian smoothing methods that we described above will be rank deficient with order 2. Therefore, we follow the procedure adopted by \cite{wood2011fast} to add a very small constant term (perturbation) to the original precision matrix $Q_\theta$. Such procedure will make the precision matrix numerically full rank, without alternating the original correlation structure in the prior.
 
-\section{Practical Comparison}\label{simulation}
+\section{Practical Comparison}\label{practice}
 
-In this section, we will provide some practical examples and comparisons between all the Bayesian smoothing spline methods described above. For each method, we will compute the mean square error (MSE) as $\frac{\sum_{i=1}^n (g(x_i) - \hat{g}(x_i))^2}{n}$, where $\hat{g}(x_i)$ denotes the posterior mean of $g(x_i)$. 
+In this section, we will provide some practical examples and comparisons between all the Bayesian smoothing spline methods described above. Besides the inference of the unknown function $g(.)$, we will also consider the inferences on its first and second order derivatives. For each method, we will compute the mean square error (MSE) as $\frac{\sum_{i=1}^n (g(x_i) - \hat{g}(x_i))^2}{n}$, where $\hat{g}(x_i)$ denotes the posterior mean of $g(x_i)$. Aspects such as prior sensitivity and computational efficiency will also be  examined in this section.
+
+\subsection{Simulation with dense knots}
+
+In the first simulation study, we consider the setting where knots are densely placed in the region of interest, and we assume equal spacings between knots for simplicity of the comparison. The dataset $\{(y_i,x_i), i \in [n]\}$ consists of $n = 500$ observations, generated as $y_i = g(x_i) + \epsilon_i$ where $\epsilon_i \sim N(0,1)$ and $g(x_i) = 5 \sin (0.5 x_i)$. The spacing between knots $d$ is defined as $d = x_{i+1} - x_i = 0.1, \forall i \in [n]$. For the implementations of all the methods, we use the same \textit{penalized complexity} (PC) prior \citep{simpson2017penalising} for the smoothing parameter $\sigma_s$, defined as $P(\sigma_s > 2) = 0.5$. 
+
+We denote the extended RW2 method as Method 1, the original Galerkin method without the diagonal approximation for the covariance matrix as Method 2 and the exact method using ARIMA model as Method 3. Once the evaluation vector $\boldsymbol{g}$ is determined, the whole function $g(.)$ can be recovered by interpolating the evaluation vector. For both Method 1 and Method 2, this interpolation is through 
+
+
+
+\begin{figure}[p]
+    \centering
+    \subfigure[Posterior]{
+      \includegraphics[width=0.47\textwidth]{sim1-function-method1.png}
+    }
+    \subfigure[Posterior]{
+      \includegraphics[width=0.47\textwidth]{sim1-function-method2.png}
+    }
+    \subfigure[Posterior]{
+      \includegraphics[width=0.47\textwidth]{sim1-function-method3linear.png}
+    }
+        \subfigure[Posterior]{
+      \includegraphics[width=0.47\textwidth]{sim1-function-method3cubic.png}
+    }
+    \caption{Result for (a), (b), (c) and (d)}
+    \label{fig:sim1func}
+\end{figure}
 
 
 

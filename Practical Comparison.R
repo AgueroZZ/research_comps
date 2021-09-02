@@ -105,6 +105,11 @@ construct_fitted <- function(weights){
   as.numeric(fitted_func)
 }
 
+compute_deriv <- function(values){
+  values <- diff(values)
+  values
+}
+
 
 
 # Inference for W
@@ -116,20 +121,74 @@ plot(fitted_func~location_interest, col = "blue", type = "l")
 
 # Construct samples for g(.):
 sample_func <- apply(samps1$samps, MARGIN = 2, FUN = construct_fitted)
-
+sample_deriv <- apply(sample_func, 2, compute_deriv)
+sample_deriv_second <- apply(sample_deriv, 2, compute_deriv)
 
 
 
 # Posterior mean
 W1 <- apply(samps1$samps,1,mean)
 mean_func <- apply(sample_func,1,mean)
+upper_func <- apply(sample_func,1,quantile, probs = 0.975)
+lower_func <- apply(sample_func,1,quantile, probs = 0.025)
 
-### Plot:
-plot(mean_func~location_interest, col = "blue", type = "l")
+
+### Plot of function:
+plot(mean_func~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func ~ location_interest, col = "orange", lty = "dashed")
+
 for (i in sample.int(1000,50)) {
-  lines(sample_func[,i] ~ location_interest, col = "grey")
+  lines(sample_func[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+
+### Plot of function derivative:
+mean_deriv <- apply(sample_deriv,1,mean)
+upper_deriv <- apply(sample_deriv,1,quantile, probs = 0.975)
+lower_deriv <- apply(sample_deriv,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Plot of function second derivative:
+mean_deriv_second <- apply(sample_deriv_second,1,mean)
+upper_deriv_second <- apply(sample_deriv_second,1,quantile, probs = 0.975)
+lower_deriv_second <- apply(sample_deriv_second,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second~location_interest[-(1:2)], col = "blue", type = "l", ylim=c(-0.0008,0.0008), ylab = "2nd derivative", xlab = "x")
+# lines(upper_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second[,i] ~ location_interest[-(1:2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff <- apply(samps1$samps,2,diff, differences = 2)
+mean_second_diff <- apply(second_diff,1,mean)
+upper_second_diff <- apply(second_diff,1,quantile, probs = 0.975)
+lower_second_diff <- apply(second_diff,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-0.1,0.1), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff ~ x[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,10)) {
+  lines(second_diff[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+acf(second_diff[,1], lag.max = 10)
+acf(mean_second_diff, lag.max = 10)
 
 
 
@@ -183,6 +242,8 @@ plot(fitted_func~location_interest, col = "blue", type = "l")
 
 # Construct samples for g(.):
 sample_func <- apply(samps2$samps, MARGIN = 2, FUN = construct_fitted)
+sample_deriv <- apply(sample_func, 2, compute_deriv)
+sample_deriv_second <- apply(sample_deriv, 2, compute_deriv)
 
 
 
@@ -190,13 +251,63 @@ sample_func <- apply(samps2$samps, MARGIN = 2, FUN = construct_fitted)
 # Posterior mean
 W2 <- apply(samps2$samps,1,mean)
 mean_func <- apply(sample_func,1,mean)
+upper_func <- apply(sample_func,1,quantile, probs = 0.975)
+lower_func <- apply(sample_func,1,quantile, probs = 0.025)
 
-### Plot:
-plot(mean_func~location_interest, col = "blue", type = "l")
+
+### Plot of function:
+plot(mean_func~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func ~ location_interest, col = "orange", lty = "dashed")
+
 for (i in sample.int(1000,50)) {
-  lines(sample_func[,i] ~ location_interest, col = "grey")
+  lines(sample_func[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+
+### Plot of function derivative:
+mean_deriv <- apply(sample_deriv,1,mean)
+upper_deriv <- apply(sample_deriv,1,quantile, probs = 0.975)
+lower_deriv <- apply(sample_deriv,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Plot of function second derivative:
+mean_deriv_second <- apply(sample_deriv_second,1,mean)
+upper_deriv_second <- apply(sample_deriv_second,1,quantile, probs = 0.975)
+lower_deriv_second <- apply(sample_deriv_second,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second~location_interest[-(1:2)], col = "blue", type = "l", ylim=c(-0.0008,0.0008), ylab = "2nd derivative", xlab = "x")
+# lines(upper_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second[,i] ~ location_interest[-(1:2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff <- apply(samps1$samps,2,diff, differences = 2)
+mean_second_diff <- apply(second_diff,1,mean)
+upper_second_diff <- apply(second_diff,1,quantile, probs = 0.975)
+lower_second_diff <- apply(second_diff,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-0.1,0.1), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff ~ x[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,10)) {
+  lines(second_diff[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
 
 
 
@@ -261,34 +372,133 @@ construct_fitted_cubic <- function(weights){
 ######## Cubic way:
 sample_func_cubic <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted_cubic)
 mean_func_cubic <- apply(sample_func_cubic,1,mean)
-### Plot:
-plot(mean_func_cubic~location_interest, col = "blue", type = "l")
+sample_deriv_cubic <- apply(sample_func_cubic, 2, compute_deriv)
+sample_deriv_second_cubic <- apply(sample_deriv_cubic, 2, compute_deriv)
+upper_func_cubic <- apply(sample_func_cubic,1,quantile, probs = 0.975)
+lower_func_cubic <- apply(sample_func_cubic,1,quantile, probs = 0.025)
+
+
+### Plot of function:
+plot(mean_func_cubic~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func_cubic ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func_cubic ~ location_interest, col = "orange", lty = "dashed")
+
 for (i in sample.int(1000,50)) {
-  lines(sample_func_cubic[,i] ~ location_interest, col = "grey")
+  lines(sample_func[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
+
+### Plot of function derivative:
+mean_deriv_cubic <- apply(sample_deriv_cubic,1,mean)
+upper_deriv_cubic <- apply(sample_deriv_cubic,1,quantile, probs = 0.975)
+lower_deriv_cubic <- apply(sample_deriv_cubic,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_cubic~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv_cubic ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv_cubic ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv_cubic[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Plot of function 2nd derivative:
+mean_deriv_second_cubic <- apply(sample_deriv_second_cubic,1,mean)
+upper_deriv_second_cubic <- apply(sample_deriv_second_cubic,1,quantile, probs = 0.975)
+lower_deriv_second_cubic <- apply(sample_deriv_second_cubic,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second_cubic~location_interest[-c(1,2)], col = "red", type = "l", ylab = "2nd derivative", xlab = "x", ylim = c(-9e-06,9e-06))
+# lines(upper_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second_cubic[,i] ~ location_interest[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff_cubic <- apply(samps3$samps,2,diff, differences = 2)
+mean_second_diff_cubic <- apply(second_diff_cubic,1,mean)
+upper_second_diff_cubic <- apply(second_diff_cubic,1,quantile, probs = 0.975)
+lower_second_diff_cubic <- apply(second_diff_cubic,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff_cubic ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-0.1,0.1), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff_cubic ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff_cubic ~ x[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,10)) {
+  lines(second_diff_cubic[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
 
 
 ######## Linear way:
-sample_func <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted)
-mean_func <- apply(sample_func,1,mean)
-### Plot:
-plot(mean_func~location_interest, col = "blue", type = "l")
+sample_func_linear <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted)
+mean_func_linear <- apply(sample_func_linear,1,mean)
+upper_func_linear <- apply(sample_func_linear,1,quantile, prob = 0.975)
+lower_func_linear <- apply(sample_func_linear,1,quantile, prob = 0.025)
+
+
+### Plot of function:
+plot(mean_func_linear~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func_linear ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func_linear ~ location_interest, col = "orange", lty = "dashed")
+
 for (i in sample.int(1000,50)) {
-  lines(sample_func[,i] ~ location_interest, col = "grey")
+  lines(sample_func_linear[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+sample_deriv_linear <- apply(sample_func_linear, 2, compute_deriv)
+sample_deriv_second_linear <- apply(sample_deriv_linear, 2, compute_deriv)
+upper_deriv_linear <- apply(sample_deriv_linear,1,quantile, probs = 0.975)
+lower_deriv_linear <- apply(sample_deriv_linear,1,quantile, probs = 0.025)
+mean_deriv_linear <- apply(sample_deriv_linear, 1, mean)
+
+### Plot of function derivative:
+
+plot(mean_deriv_linear~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv_linear ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv_linear ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv_linear[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Plot of function 2nd derivative:
+mean_deriv_second_linear <- apply(sample_deriv_second_linear,1,mean)
+upper_deriv_second_linear <- apply(sample_deriv_second_linear,1,quantile, probs = 0.975)
+lower_deriv_second_linear <- apply(sample_deriv_second_linear,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second_linear~location_interest[-c(1,2)], col = "red", type = "l", ylab = "2nd derivative", xlab = "x", ylim = c(-0.001,0.001))
+# lines(upper_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second_linear[,i] ~ location_interest[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff_linear <- apply(samps3$samps,2,diff, differences = 2)
+mean_second_diff_linear <- apply(second_diff_linear,1,mean)
+upper_second_diff_linear <- apply(second_diff_linear,1,quantile, probs = 0.975)
+lower_second_diff_linear <- apply(second_diff_linear,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff_linear ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-0.1,0.1), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff_linear ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff_linear ~ x[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,10)) {
+  lines(second_diff_linear[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
 
 
-
-
-
-
-#### Comparison
-plot(y~x)
-lines(W1~x, col = "Red")
-lines(W2~x, col = "blue")
-lines(W3~x, col = "green")
-lines(5*sin(0.5*x)~x, col = "black")
 
 
 
