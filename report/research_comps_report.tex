@@ -320,9 +320,6 @@ We denote the extended RW2 method as Method 1, the original Galerkin method with
 
 In the figure \ref{fig:sim1func} below, we present the inferred functions using each methods above. Based on the figure, we can see these methods yield similar inference for the function $g(.)$ when knots are densely placed over the region of interest. More specifically, the MSEs computed using the posterior means for the true evaluation vector $\boldsymbol{g}$ are respectively 0.0342, 0.0336 and 0.0333. However, Method 2 and Method 3 took around 7.2 seconds to get the inferential results while Method 1 only took 0.169 seconds because of the sparse precision matrix it used. 
 
-To also consider the quality of interpolation, we computed the integrated error $\int_0^{50} |g(t) - \hat{g}(t)| dt$ of each method. 
-
-
 
 \begin{figure}[p]
     \centering
@@ -348,38 +345,41 @@ Then, using the interpolated functions we can also do inference on the derivativ
 \begin{figure}[p]
     \centering
     \subfigure[First derivative inferred using Method 1]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method1.png}
+      \includegraphics[width=0.47\textwidth]{sim1-1deriv-method1.png}
     }
     \subfigure[First derivative inferred using Method 2]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method2.png}
+      \includegraphics[width=0.47\textwidth]{sim1-1deriv-method2.png}
     }
     \subfigure[First derivative inferred using Method 3 (linear)]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method3linear.png}
+      \includegraphics[width=0.47\textwidth]{sim1-1deriv-method3-linear.png}
     }
         \subfigure[First derivative inferred using Method 3 (cubic)]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method3cubic.png}
+      \includegraphics[width=0.47\textwidth]{sim1-1deriv-method3-cubic.png}
     }
     \caption{Inference for the function $g'(.)$ using different methods; The light blue lines are samples from the posterior distribution; The red lines are posterior mean of the function; The orange lines are the posterior credible interval with 95 percent coverage rate.}
-    \label{fig:sim1func_deriv}
+    \label{fig:sim1func_1deriv}
 \end{figure}
 
 \begin{figure}[p]
     \centering
     \subfigure[Second derivative inferred using Method 1]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method1.png}
+      \includegraphics[width=0.47\textwidth]{sim1-2deriv-method1.png}
     }
     \subfigure[Second derivative inferred using Method 2]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method2.png}
+      \includegraphics[width=0.47\textwidth]{sim1-2deriv-method2.png}
     }
     \subfigure[Second derivative inferred using Method 3 (linear)]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method3linear.png}
+      \includegraphics[width=0.47\textwidth]{sim1-2deriv-method3-linear.png}
     }
         \subfigure[Second derivative inferred using Method 3 (cubic)]{
-      \includegraphics[width=0.47\textwidth]{sim1-function-method3cubic.png}
+      \includegraphics[width=0.47\textwidth]{sim1-2deriv-method3-cubic.png}
     }
     \caption{Inference for the function $g''(.)$ using different methods; The light blue lines are samples from the posterior distribution; The red lines are posterior mean of the function; The orange lines are the posterior credible interval with 95 percent coverage rate.}
-    \label{fig:sim1func_deriv}
+    \label{fig:sim1func_2deriv}
 \end{figure}
+
+To also consider the quality of interpolation, we computed the (relative) integrated error $\frac{\int_0^{50} |g(t) - \hat{g}(t)| dt}{\int_0^{50} |g(t)| dt}$ of each method. For Method 1, the integrated error of the function is 0.0581, of the first order derivative is 0.164 and of the second order derivative is 2.105. For Method 2, the integrated error of the function is 0.0589, of the first order derivative is 0.164 and of the second order derivative is 2.105. For Method 3 with linear interpolation, the integrated error of the function is 0.0576, of the first order derivative is 0.162 and of the second order derivative is 2.093. For Method 3 with cubic interpolation, the integrated error of the function is 0.0577, of the first order derivative is 0.162 and of the second order derivative is 0.642.
+
 
 
 
