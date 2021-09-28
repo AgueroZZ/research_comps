@@ -2,7 +2,12 @@ library(aghq)
 library(TMB)
 library(Matrix)
 library(tidyverse)
-n_samp = 1000
+library(foreach)
+
+# cl <- parallel::makeCluster(10)
+# doParallel::registerDoParallel(cl)
+# 
+
 compute_H_rue <- function(d,n){
   H <- matrix(data = 0, nrow = n, ncol = n)
   for (i in 2:(nrow(H)-1)) {
@@ -103,6 +108,8 @@ Interpolation_vec_v1 <- function(t, x_grid, gx, GP, n_samples = 500){
   samples <- lapply(conditional_mean_list, simulated_gz)
   samples
 }
+compile(file = "02_RW2Comparison.cpp")
+dyn.load(dynlib("02_RW2Comparison"))
 
 
 
@@ -296,6 +303,9 @@ result_n50 <- replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000)
 for (i in 1:99) {
   result_n50 <- rbind(result_n50, replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000))
 }
+# result_n50 <- foreach(i = 1:99, .combine = 'rbind', packages = c("Matrix", 'aghq')) %dopar% {
+#   replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000)
+# }
 
 
 result_n50_repeat5 <- replicate_for_summary_once(dis = 4, k_n = 5, n_samp = 2000)
