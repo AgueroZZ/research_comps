@@ -18,7 +18,7 @@ X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
 
 
 
-#### Approach 1: Using RW2 model with Diaognal Approximation
+#### Approach 1: Using RW2 model with Diagonal Approximation
 compute_H_rue <- function(d,n){
   H <- matrix(data = 0, nrow = n, ncol = n)
   for (i in 2:(nrow(H)-1)) {
@@ -322,14 +322,14 @@ for (i in sample.int(1000,1)) {
 
 
 mean(abs(mean_func_Method2 - true_g))/mean(abs(true_g))
-mean(abs(mean_deriv_Method1 - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
-mean(abs(mean_deriv_second_Method1 - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
+mean(abs(mean_deriv_Method2 - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
+mean(abs(mean_deriv_second_Method2 - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
 
 
 
 
 ### Look at the second order differences at original locations (since spacings are equal)
-second_diff <- apply(samps1$samps,2,diff, differences = 2)
+second_diff <- apply(samps2$samps,2,diff, differences = 2)
 mean_second_diff <- apply(second_diff,1,mean)
 upper_second_diff <- apply(second_diff,1,quantile, probs = 0.975)
 lower_second_diff <- apply(second_diff,1,quantile, probs = 0.025)

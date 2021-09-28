@@ -1,0 +1,464 @@
+---
+title: "Contrasting RW2 with ARIMA"
+author: "Ziang Zhang"
+date: "06/09/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(INLA)
+library(mgcv)
+library(TMB)
+library(aghq)
+library(ggplot2)
+```
+
+# Study 1: The higher order differences
+
+```{r, include=FALSE}
+compute_H_rue <- function(d,n){
+  H <- matrix(data = 0, nrow = n, ncol = n)
+  for (i in 2:(nrow(H)-1)) {
+    H[i,i] <- -(1/d[i-1]+1/d[i])
+    H[i,i-1] <- 1/d[i-1]
+    H[i,i+1] <- 1/d[i]
+  }
+  H
+}
+compute_B <- function(d,n){
+  B <-matrix(0, nrow = n, ncol = n)
+  B[1,1] <- d[1]/3
+  B[1,2] <- d[1]/6
+  B[n,n-1] <- d[n-1]/6
+  B[n,n] <- d[n-1]/3
+  for (i in 2:(nrow(B)-1)) {
+    B[i,i-1] <- d[i-1]/6
+    B[i,i] <- (d[i-1]+d[i])/3
+    B[i,i+1] <- d[i]/6
+  }
+  B
+}
+compute_A <- function(d,n){
+  A <-matrix(0, nrow = n, ncol = n)
+  A[1,1] <- d[1]/2
+  A[n,n] <- d[n-1]/2
+  for (i in 2:(nrow(A)-1)) {
+    A[i,i] <- (d[i-1]+d[i])/2
+  }
+  A
+}
+```
+
+## When knots are densely placed
+
+
+```{r, echo=FALSE}
+n <- 500
+x <- seq(0.1,50, by = 0.1)
+compute_g <- function(x){
+  5*sin(0.5*x)
+}
+y <- compute_g(x) + rnorm(n, sd = 3)
+d <- diff(x)
+X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
+
+
+
+
+#### Approach 1: Using RW2 model with Diaognal Approximation
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+A <- compute_A(d, n = length(x))
+Q1 <- t(H) %*% solve(A) %*% H
+Q1 <- as(Q1 + Diagonal(n, x = 0.0001), "dgTMatrix")
+
+dyn.load(dynlib("02_RW2Comparison"))
+
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q1,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+
+
+# Inference for W
+samps1 <- sample_marginal(quad,1e03)
+
+
+D <- H[-c(1,n),]
+R <- B[-c(1,n), -c(1,n)]
+
+Q3 <- t(D) %*% solve(R) %*% D
+Q3 <- as(as.matrix(Q3 + Diagonal(n, x = 0.0001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q3,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q3,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+# Inference for W
+samps3 <- sample_marginal(quad,1e03)
+
+
+
+g_RW2 <- samps1$samps
+g_ARIMA <- samps3$samps
+```
+
+```{r}
+### Study volatility of second order difference
+true_W <- compute_g(x)
+true_gamma <- diff(true_W, differences = 2)
+compute_MSE <- function(vec){
+  mean((vec - true_gamma)^2)
+}
+
+## RW2
+# Mean:
+gamma_RW2 <- apply(samps1$samps,2, diff, differences = 2)
+gamma_RW2_mean <- apply(gamma_RW2,1, mean)
+gamma_RW2_upper <- apply(gamma_RW2,1,quantile, probs = 0.975)
+gamma_RW2_lower <- apply(gamma_RW2,1,quantile, probs = 0.025)
+
+plot(gamma_RW2_mean~x[-c(1,2)], type = 'l', col = 'red')
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+acf(gamma_RW2_mean, lag.max = 50)
+
+
+# Samples
+plot(gamma_RW2_mean~x[-c(1,2)], type = 'l', col = 'red', ylim = c(-0.1,0.1), xlim = c(1,50))
+lines(true_gamma ~ x[-c(1,2)], col = 'purple')
+lines(gamma_RW2_upper ~ x[-c(1,2)], col = 'orange')
+lines(gamma_RW2_lower ~ x[-c(1,2)], col = 'orange')
+
+for (i in sample.int(1000,1)) {
+  lines(gamma_RW2[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+acf(gamma_RW2[,1], lag.max = 50)
+acf(gamma_RW2[,2], lag.max = 50)
+acf(gamma_RW2[,3], lag.max = 50)
+
+
+MSE_RW2_samples <- apply(gamma_RW2, 2, compute_MSE)
+
+####### Observation: The mean is much much smoother than the sample. The credible interval is quite wide. Sample ACF
+####### for each sampled function only spikes at the first lag. 
+
+
+## ARIMA:
+
+# Mean:
+gamma_ARIMA <- apply(samps3$samps,2, diff, differences = 2)
+gamma_ARIMA_mean <- apply(gamma_ARIMA,1, mean)
+gamma_ARIMA_upper <- apply(gamma_ARIMA,1,quantile, probs = 0.975)
+gamma_ARIMA_lower <- apply(gamma_ARIMA,1,quantile, probs = 0.025)
+
+plot(gamma_ARIMA_mean~x[-c(1,2)], type = 'l', col = 'red')
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+acf(gamma_RW2_mean, lag.max = 50)
+
+# Samples
+plot(gamma_ARIMA_mean~x[-c(1,2)], type = 'l', col = 'red', ylim = c(-0.1,0.1), xlim = c(1,50))
+lines(true_gamma ~ x[-c(1,2)], col = 'purple')
+lines(gamma_ARIMA_upper ~ x[-c(1,2)], col = 'orange')
+lines(gamma_ARIMA_lower ~ x[-c(1,2)], col = 'orange')
+
+for (i in sample.int(1000,1)) {
+  lines(gamma_ARIMA[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+acf(gamma_ARIMA[,1], lag.max = 50)
+acf(gamma_ARIMA[,2], lag.max = 50)
+acf(gamma_ARIMA[,3], lag.max = 50)
+
+
+MSE_ARIMA_samples <- apply(gamma_ARIMA, 2, compute_MSE)
+
+hist_data <- data.frame(MSE = c(MSE_RW2_samples,MSE_ARIMA_samples), types = rep(c("RW2", "ARIMA"), each = 1000))
+
+ggplot(data = hist_data) + geom_density(aes(x=MSE, fill = types), alpha = 0.3) + ylab("Distribution of MSE") + xlab("MSE of each sample")
+
+
+### Mean credible width
+
+credible_width_rw2 <- mean(gamma_RW2_upper - gamma_RW2_lower)
+credible_width_rw2
+credible_width_ARIMA <- mean(gamma_ARIMA_upper - gamma_ARIMA_lower)
+credible_width_ARIMA
+
+
+
+
+```
+
+## When knots are sparsely placed
+
+
+```{r, echo=FALSE}
+n <- 500
+x <- seq(1,500, by = 1)
+compute_g <- function(x){
+  5*sin(0.5*x)
+}
+y <- compute_g(x) + rnorm(n, sd = 3)
+d <- diff(x)
+X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
+
+
+
+
+#### Approach 1: Using RW2 model with Diaognal Approximation
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+A <- compute_A(d, n = length(x))
+Q1 <- t(H) %*% solve(A) %*% H
+Q1 <- as(Q1 + Diagonal(n, x = 0.0001), "dgTMatrix")
+
+dyn.load(dynlib("02_RW2Comparison"))
+
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q1,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+
+
+# Inference for W
+samps1 <- sample_marginal(quad,1e03)
+
+
+D <- H[-c(1,n),]
+R <- B[-c(1,n), -c(1,n)]
+
+Q3 <- t(D) %*% solve(R) %*% D
+Q3 <- as(as.matrix(Q3 + Diagonal(n, x = 0.0001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q3,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q3,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+# Inference for W
+samps3 <- sample_marginal(quad,1e03)
+
+
+
+g_RW2 <- samps1$samps
+g_ARIMA <- samps3$samps
+```
+
+```{r}
+### Study volatility of second order difference
+true_W <- compute_g(x)
+true_gamma <- diff(true_W, differences = 2)
+compute_MSE <- function(vec){
+  mean((vec - true_gamma)^2)
+}
+
+## RW2
+# Mean:
+gamma_RW2 <- apply(samps1$samps,2, diff, differences = 2)
+gamma_RW2_mean <- apply(gamma_RW2,1, mean)
+gamma_RW2_upper <- apply(gamma_RW2,1,quantile, probs = 0.975)
+gamma_RW2_lower <- apply(gamma_RW2,1,quantile, probs = 0.025)
+
+plot(gamma_RW2_mean~x[-c(1,2)], type = 'l', col = 'red', ylim = c(-4,4), xlim = c(1,50))
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+acf(gamma_RW2_mean, lag.max = 50)
+
+
+# Samples
+plot(gamma_RW2_mean~x[-c(1,2)], type = 'l', col = 'red', ylim = c(-4,4), xlim = c(1,50))
+lines(true_gamma ~ x[-c(1,2)], col = 'purple')
+lines(gamma_RW2_upper ~ x[-c(1,2)], col = 'orange')
+lines(gamma_RW2_lower ~ x[-c(1,2)], col = 'orange')
+
+for (i in sample.int(1000,1)) {
+  lines(gamma_RW2[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+acf(gamma_RW2[,1], lag.max = 50)
+acf(gamma_RW2[,2], lag.max = 50)
+acf(gamma_RW2[,3], lag.max = 50)
+
+
+MSE_RW2_samples <- apply(gamma_RW2, 2, compute_MSE)
+
+####### Observation: The mean is much much smoother than the sample. The credible interval is quite wide. Sample ACF
+####### for each sampled function only spikes at the first lag. 
+
+
+## ARIMA:
+
+# Mean:
+gamma_ARIMA <- apply(samps3$samps,2, diff, differences = 2)
+gamma_ARIMA_mean <- apply(gamma_ARIMA,1, mean)
+gamma_ARIMA_upper <- apply(gamma_ARIMA,1,quantile, probs = 0.975)
+gamma_ARIMA_lower <- apply(gamma_ARIMA,1,quantile, probs = 0.025)
+
+plot(gamma_ARIMA_mean~x[-c(1,2)], type = 'l', col = 'red', ylim = c(-4,4), xlim = c(1,50))
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+acf(gamma_RW2_mean, lag.max = 50)
+
+# Samples
+plot(gamma_ARIMA_mean~x[-c(1,2)], type = 'l', col = 'red', ylim = c(-4,4), xlim = c(1,50))
+lines(true_gamma ~ x[-c(1,2)], col = 'purple')
+lines(gamma_ARIMA_upper ~ x[-c(1,2)], col = 'orange')
+lines(gamma_ARIMA_lower ~ x[-c(1,2)], col = 'orange')
+
+for (i in sample.int(1000,1)) {
+  lines(gamma_ARIMA[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+acf(gamma_ARIMA[,1], lag.max = 50)
+acf(gamma_ARIMA[,2], lag.max = 50)
+acf(gamma_ARIMA[,3], lag.max = 50)
+
+
+MSE_ARIMA_samples <- apply(gamma_ARIMA, 2, compute_MSE)
+
+hist_data <- data.frame(MSE = c(MSE_RW2_samples,MSE_ARIMA_samples), types = rep(c("RW2", "ARIMA"), each = 1000))
+
+ggplot(data = hist_data) + geom_density(aes(x=MSE, fill = types), alpha = 0.3) + ylab("Distribution of MSE") + xlab("MSE of each sample")
+
+
+### Mean credible width
+
+credible_width_rw2 <- mean(gamma_RW2_upper - gamma_RW2_lower)
+credible_width_rw2
+credible_width_ARIMA <- mean(gamma_ARIMA_upper - gamma_ARIMA_lower)
+credible_width_ARIMA
+
+
+
+
+```
+
+
+
+
+

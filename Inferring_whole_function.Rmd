@@ -1,0 +1,1087 @@
+---
+title: "Recovering the function for the whole region of interest, through a limited number of observed locations"
+author: "Ziang Zhang"
+header-includes:
+    - \usepackage{setspace}\doublespacing
+    
+date: "23/09/2021"
+indent: true
+output: pdf_document
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(aghq)
+library(TMB)
+library(Matrix)
+library(tidyverse)
+n_samp = 1000
+compute_H_rue <- function(d,n){
+  H <- matrix(data = 0, nrow = n, ncol = n)
+  for (i in 2:(nrow(H)-1)) {
+    H[i,i] <- -(1/d[i-1]+1/d[i])
+    H[i,i-1] <- 1/d[i-1]
+    H[i,i+1] <- 1/d[i]
+  }
+  H
+}
+compute_B <- function(d,n){
+  B <-matrix(0, nrow = n, ncol = n)
+  B[1,1] <- d[1]/3
+  B[1,2] <- d[1]/6
+  B[n,n-1] <- d[n-1]/6
+  B[n,n] <- d[n-1]/3
+  for (i in 2:(nrow(B)-1)) {
+    B[i,i-1] <- d[i-1]/6
+    B[i,i] <- (d[i-1]+d[i])/3
+    B[i,i+1] <- d[i]/6
+  }
+  B
+}
+compute_A <- function(d,n){
+  A <-matrix(0, nrow = n, ncol = n)
+  A[1,1] <- d[1]/2
+  A[n,n] <- d[n-1]/2
+  for (i in 2:(nrow(A)-1)) {
+    A[i,i] <- (d[i-1]+d[i])/2
+  }
+  A
+}
+
+
+switch_matrix_once <- function(M, from, to){
+  L <- diag(1, nrow = nrow(M), ncol = nrow(M))
+  original_row <- L[to,]
+  L[to,] <- L[from,]
+  L[from,] <- original_row
+  L%*%M%*%t(L)
+}
+
+
+switch_matrix <- function(z, x, M){
+  all_grid <- sort(c(z,x))
+  n <- length(x)
+  for (i in 1:length(z)) {
+    z_location <- which(all_grid %in% z[i])
+    M <- switch_matrix_once(M,from = z_location, to = n + i)
+    all_grid[z_location] <- all_grid[n+i]
+    all_grid[n + i] <- z[i]
+  }
+  for (j in 1:length(x)) {
+    x_location <- which(all_grid %in% x[j])
+    M <- switch_matrix_once(M,from = x_location, to = j)
+    all_grid[x_location] <- all_grid[j]
+    all_grid[j] <- x[j]
+  }
+  M
+}
+
+
+Interpolation_vec_v1 <- function(t, x_grid, gx, GP, n_samples = 500){
+  all_grid <- sort(c(t,x_grid))
+  t_location <- which(all_grid %in% t)
+  n <- length(all_grid)
+  all_d <- diff(all_grid)
+  H <- compute_H_rue(all_d, n)
+  B <- compute_B(all_d, n)
+  A <- compute_A(all_d, n)
+  if(GP == "RW2"){
+    Q <- t(H) %*% solve(A) %*% H
+  }
+  else{
+    D <- H[-c(1,length(all_grid)),]
+    R <- B[-c(1,length(all_grid)), -c(1,length(all_grid))]
+    Q <- t(D) %*% solve(R) %*% D
+  }
+  
+  C <- solve(Q + Diagonal(n, x = 0.00001))
+  C_trans <- switch_matrix(t,x_grid,C)
+  Q_trans <- forceSymmetric(solve(C_trans))
+  QAA <- Q_trans[(length(x_grid) + 1):n, (length(x_grid) + 1):n]
+  QAB <- Q_trans[(length(x_grid) + 1):n, 1:(length(x_grid))]
+  QBB <- Q[1:(length(x_grid)), 1:(length(x_grid))]
+  compute_conditional_mean <- function(gx){
+    conditional_mean <- -solve(QAA)%*% QAB %*% (gx)
+    conditional_mean
+  }
+  conditional_mean_list <- apply(gx, 2, compute_conditional_mean)
+
+  simulated_gz <- function(cmu){
+    Lt <- chol(QAA)
+    z <- rnorm(n = length(t))
+    v <- solve(a = Lt, b = z)
+    v + cmu
+  }
+  
+  samples <- lapply(conditional_mean_list, simulated_gz)
+  samples
+}
+
+```
+
+# Simulation Setting
+
+In this simulation study, we aim to compare the performance of RW2 method with ARIMA method to yield the inference of some unknown effect function $g(x)$. 
+
+We consider two different types of settings for simulations. In the first type of setting, we fix the region of interest to $[0,100]$, and vary the number of observations $n$ between $\{10, 50, 100\}$ in that fixed interval. In the second type of setting, we fix the number of observations to $n = 50$, but vary the length of the region of interest. For simplicity, we consider the spacing between locations to be equal in all the simulation study.
+
+
+
+
+The simulated data set has the form of $\{(x_i,y_i):i\in[n]\}$, where $x_i$ denotes the i-th (observed) covariate value and $y_i$ denotes its corresponding observation. The inferential target is not just to know the posterior distribution of the effect function at the observed locations $g(\boldsymbol{x})$, but also to infer the shape of the function $g(.)$ at the whole region of interest. To do that, we take a high resolution equally spaced grids $\{z_i:i\in[M]\}$ where $M \in \mathbb{N}$ is much larger relative to the sample size $n$. Since $M$ is large, we assume the function $g(.)$ can be well approximated by the step function $\tilde{g}(.) = \sum_{i=1}^{M} \mathbb{I}(z_{i}\leq.< z_{i+1})g(z_i)$ where $z_{M+1} := +\infty$.
+
+To obtain samples of the unobserved values $g(\boldsymbol{z})$, we first draw samples $\tilde{g}(\boldsymbol{x})$ from the posterior of $g(\boldsymbol{x})$, then sample from the conditional distribution of $g(\boldsymbol{z})|\tilde{g}(\boldsymbol{x})$ given by the prior distribution.
+
+For the true function $g(.)$, we consider it being the function $$g(x) = 5\sin(0.1x),$$ observed at $x \in [0,100]$. We assume the observation level model is $$y_i = g(x_i) + \epsilon_i, $$ with $\epsilon_i \sim N(0,3)$.
+
+The performance between $\tilde{g}_{\text{RW2}}(.)$ and $\tilde{g}_{\text{ARIMA}}(.)$ will be compared in terms of \textit{root integrated absolute error}(RIAE) and \textit{mean credible interval width}(MCI). The RIAE is defined as $$\text{RIAE}(\tilde{g}) = \sqrt{ \int_0^{100}|\tilde{g}(t)-g(t)|dt},$$ where the point estimate is defined using the posterior mean. These measures are computed from 100 independent replications at fixed set of observed locations.
+
+
+# Sample Size being 10
+
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+n_samp = 2000
+
+### Simulation with very sparse data: (n = 10)
+n <- 10
+z <- seq(0.5,100,0.5)
+x <- seq(5,100, by = 10)
+z_grid <- z[!z %in% x]
+
+compute_g <- function(x){
+  5*sin(0.1*x)
+}
+y <- compute_g(x) + rnorm(n, sd = sqrt(3))
+d <- diff(x)
+X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
+
+
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+A <- compute_A(d, n = length(x))
+
+
+###### RW2:
+Q1 <- t(H) %*% solve(A) %*% H
+Q1 <- as(Q1 + Diagonal(n, x = 0.00001), "dgTMatrix")
+
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q1,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+
+
+# AGHQ
+set.seed(123)
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+gx <- sample_marginal(quad, n_samp)
+gx <- gx$samps
+gz_list <- Interpolation_vec_v1(t = z_grid, x, gx, "RW2")
+gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  gz[,i] <- gz_list[[i]]
+}
+
+sample_path <- Matrix(0,nrow = length(z), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(gx[,i],ncol = 1))
+}
+
+sample_path_rw2 <- as.tibble(as.matrix(sample_path))
+sample_path_rw2$locations <- c(z_grid,x)
+sample_path_rw2 <- arrange(sample_path_rw2, by = locations)
+
+mean_y_rw2 <- apply(sample_path_rw2, 1, mean)
+upper_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.975)
+lower_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.025)
+mean_x <- apply(gx, 1, mean)
+
+
+
+
+
+result_data <- data.frame(locations = sample_path_rw2$locations, mean_y = mean_y_rw2, upper_y = upper_y_rw2, lower_y = lower_y_rw2)
+plot(result_data$mean_y ~ result_data$locations, type = 'l', xlab = "region of interest", ylab = "y", col = "red", ylim = c(-10,10), lty = 1)
+lines(result_data$upper_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(result_data$lower_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(compute_g(result_data$locations) ~ result_data$locations, lty = 3, col = 'black')
+points(mean_x ~ x, col = 'red')
+for (i in sample.int(n_samp,30)) {
+  lines(unlist(sample_path_rw2[,i]) ~ z, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+title(main = "RW2 for very sparse covariate: g(.)")
+
+
+
+### compute rIAE and MCI
+# sqrt(mean(abs(compute_g(z) - mean_y_rw2)))
+# mean(upper_y_rw2 - lower_y_rw2)
+
+D <- H[-c(1,n),]
+R <- B[-c(1,n), -c(1,n)]
+
+Q3 <- t(D) %*% solve(R) %*% D
+Q3 <- as(as.matrix(Q3 + Diagonal(n, x = 0.00001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q3,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q3,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+
+
+# AGHQ
+set.seed(123)
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+gx <- sample_marginal(quad, n_samp)
+gx <- gx$samps
+gz_list <- Interpolation_vec_v1(t = z_grid, x, gx, "ARIMA")
+mean_x <- apply(gx, 1, mean)
+# upper_x <- apply(gx, 1, quantile, p = 0.975)
+# lower_x <- apply(gx, 1, quantile, p = 0.025)
+
+
+sample_path <- Matrix(0,nrow = length(z), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(gx[,i],ncol = 1))
+}
+
+# 
+# mean_z <- apply(gz, 1, mean)
+# upper_z <- apply(gz, 1, quantile, p = 0.975)
+# lower_z <- apply(gz, 1, quantile, p = 0.025)
+mean_x <- apply(gx, 1, mean)
+# upper_x <- apply(gx, 1, quantile, p = 0.975)
+# lower_x <- apply(gx, 1, quantile, p = 0.025)
+sample_path_arima <- as.tibble(as.matrix(sample_path))
+sample_path_arima$locations <- c(z_grid,x)
+sample_path_arima <- arrange(sample_path_arima, by = locations)
+
+mean_y_arima <- apply(sample_path_arima, 1, mean)
+upper_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.975)
+lower_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.025)
+
+
+result_data <- data.frame(locations = sample_path_arima$locations, mean_y = mean_y_arima, upper_y = upper_y_arima, lower_y = lower_y_arima)
+plot(result_data$mean_y ~ result_data$locations, type = 'l', xlab = "region of interest", ylab = "y", col = "red", ylim = c(-10,10), lty = 1)
+lines(result_data$upper_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(result_data$lower_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(compute_g(result_data$locations) ~ result_data$locations, lty = 3, col = 'black')
+points(mean_x ~ x, col = 'red')
+for (i in sample.int(n_samp,30)) {
+  lines(unlist(sample_path_arima[,i]) ~ z, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+title(main = "ARIMA for very sparse covariate: g(.)")
+
+
+### compute rIAE and MCI
+# sqrt(mean(abs(compute_g(z) - mean_y_arima)))
+# mean(upper_y_arima - lower_y_arima)
+
+```
+
+
+The inferred results using RW2/ARIMA method are summarized at above. For the resolution value, we used $M = 200$. The red line represents the posterior mean of $g(\boldsymbol{z})$, the orange lines represent its 95 \% credible interval, and the light blue lines are 10 sample paths simulated from the posterior distribution of $g(\boldsymbol{z})$. The black dotted line is the true function. The red points are the posterior mean values at the observed locations $g(\boldsymbol{x})$.
+
+Just looking at the posterior mean and the posterior credible intervals, the two methods yield similar inference for $g(.)$. The corresponding RIAE and MCI are `r round(sqrt(mean(abs(compute_g(z) - mean_y_rw2))),3)` and `r round(mean(upper_y_rw2 - lower_y_rw2), 3)` for RW2 method; `r round(sqrt(mean(abs(compute_g(z) - mean_y_arima))),3)` and `r round(mean(upper_y_arima - lower_y_arima), 3)` for ARIMA method. The posterior credible intervals are shrunk at the locations of $\{z_i;i\in[M]\}$ that are observed. 
+
+To better understand the difference between these methods, we also look at the posterior samples obtained using each method for different functional/operator on the function $g(.)$. We first consider applying first/second order derivative operator on the functions obtained using each of the method, which can be approximated using first/second order differences of the discrete vector $g(\boldsymbol{z})$ due to its high resolution. 
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+sample_path_rw2_1stDeriv <- apply(sample_path_rw2, 2, diff)
+sample_path_rw2_1stDeriv[,2001] <- unlist(sample_path_rw2[,2001])[-1]
+sample_path_rw2_1stDeriv_mean <- apply(sample_path_rw2_1stDeriv, 1, mean)
+sample_path_rw2_1stDeriv_upper <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.975)
+sample_path_rw2_1stDeriv_lower <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z)) ~ z[-1], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "1st deriv", ylim = c(-3,3), main = "RW2 for very sparse covariate: 1st deriv")
+lines(sample_path_rw2_1stDeriv_mean ~ z[-1], col = 'red')
+lines(sample_path_rw2_1stDeriv_upper ~ z[-1], col = 'orange', lty = 2)
+lines(sample_path_rw2_1stDeriv_lower ~ z[-1], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_rw2_1stDeriv[,i]) ~ sample_path_rw2_1stDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean)))
+# mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower)
+
+sample_path_arima_1stDeriv <- apply(sample_path_arima, 2, diff)
+sample_path_arima_1stDeriv[,2001] <- unlist(sample_path_arima[,2001])[-1]
+sample_path_arima_1stDeriv_mean <- apply(sample_path_arima_1stDeriv, 1, mean)
+sample_path_arima_1stDeriv_upper <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.975)
+sample_path_arima_1stDeriv_lower <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z)) ~ z[-1], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "1st deriv", ylim = c(-3,3), main = "ARIMA for very sparse covariate: 1st deriv")
+lines(sample_path_arima_1stDeriv_mean ~ z[-1], col = 'red')
+lines(sample_path_arima_1stDeriv_upper ~ z[-1], col = 'orange', lty = 2)
+lines(sample_path_arima_1stDeriv_lower ~ z[-1], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_arima_1stDeriv[,i]) ~ sample_path_arima_1stDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean)))
+# mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower)
+
+```
+
+For the first order derivative, there seems to be no big difference between the two approaches as well. The corresponding RIAE and MCI are `r round(sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean))),3)` and `r round(mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower), 3)` for RW2 method; `r round(sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean))),3)` and `r round(mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower), 3)` for ARIMA method.
+
+
+Then we will apply the same procedure to see the second order derivatives yielded by each method.
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+sample_path_rw2_2ndDeriv <- apply(sample_path_rw2, 2, diff, differences = 2)
+sample_path_rw2_2ndDeriv[,2001] <- unlist(sample_path_rw2[,2001])[-c(1,2)]
+sample_path_rw2_2ndDeriv_mean <- apply(sample_path_rw2_2ndDeriv, 1, mean)
+sample_path_rw2_2ndDeriv_upper <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.975)
+sample_path_rw2_2ndDeriv_lower <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z), differences = 2) ~ z[-c(1,2)], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "2nd deriv", ylim = c(-1,1), main = "RW2 for very sparse covariate: 2nd deriv")
+lines(sample_path_rw2_2ndDeriv_mean ~ z[-c(1,2)], col = 'red')
+lines(sample_path_rw2_2ndDeriv_upper ~ z[-c(1,2)], col = 'orange', lty = 2)
+lines(sample_path_rw2_2ndDeriv_lower ~ z[-c(1,2)], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_rw2_2ndDeriv[,i]) ~ sample_path_rw2_2ndDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), 3)
+# round(mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), 3)
+
+sample_path_arima_2ndDeriv <- apply(sample_path_arima, 2, diff, differences = 2)
+sample_path_arima_2ndDeriv[,2001] <- unlist(sample_path_arima[,2001])[-c(1,2)]
+sample_path_arima_2ndDeriv_mean <- apply(sample_path_arima_2ndDeriv, 1, mean)
+sample_path_arima_2ndDeriv_upper <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.975)
+sample_path_arima_2ndDeriv_lower <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z), differences = 2) ~ z[-c(1,2)], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "2nd deriv", ylim = c(-1,1), main = "ARIMA for very sparse covariate: 2nd deriv")
+lines(sample_path_arima_2ndDeriv_mean ~ z[-c(1,2)], col = 'red')
+lines(sample_path_arima_2ndDeriv_upper ~ z[-c(1,2)], col = 'orange', lty = 2)
+lines(sample_path_arima_2ndDeriv_lower ~ z[-c(1,2)], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_arima_2ndDeriv[,i]) ~ sample_path_arima_2ndDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), 3)
+# round(mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), 3)
+
+```
+
+For the second order derivative, the corresponding RIAE and MCI are `r round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), 3)` and `r round(mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), 3)` for RW2 method; `r round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), 3)` and `r round(mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), 3)` for ARIMA method.
+
+
+
+
+
+
+
+
+# Sample Size being 50
+
+We can see that at sample size of 10, neither methods provide satisfactory inferences for $g(.)$. We then consider the same setting for the case when sample size is 50.
+
+## Case 1: The locations are all unique
+
+
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+
+### Simulation with sparse data: (n = 50)
+n <- 50
+z <- seq(0.5,100,0.5)
+x <- seq(1,100, by = 2)
+z_grid <- z[!z %in% x]
+
+compute_g <- function(x){
+  5*sin(0.1*x)
+}
+y <- compute_g(x) + rnorm(n, sd = sqrt(3))
+d <- diff(x)
+X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
+
+
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+A <- compute_A(d, n = length(x))
+
+
+###### RW2:
+Q1 <- t(H) %*% solve(A) %*% H
+Q1 <- as(Q1 + Diagonal(n, x = 0.00001), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q1,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+
+# AGHQ
+set.seed(123)
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+
+gx <- sample_marginal(quad, n_samp)
+gx <- gx$samps
+gz_list <- Interpolation_vec_v1(t = z_grid, x, gx, "RW2")
+
+
+# gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
+# for (i in 1:length(gz_list)) {
+#   gz[,i] <- gz_list[[i]]
+# }
+
+# mean_z <- apply(gz, 1, mean)
+# upper_z <- apply(gz, 1, quantile, p = 0.975)
+# lower_z <- apply(gz, 1, quantile, p = 0.025)
+mean_x <- apply(gx, 1, mean)
+# upper_x <- apply(gx, 1, quantile, p = 0.975)
+# lower_x <- apply(gx, 1, quantile, p = 0.025)
+
+
+sample_path <- Matrix(0,nrow = length(z), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(gx[,i],ncol = 1))
+}
+
+
+sample_path_rw2 <- as.tibble(as.matrix(sample_path))
+sample_path_rw2$locations <- c(z_grid,x)
+sample_path_rw2 <- arrange(sample_path_rw2, by = locations)
+
+mean_y_rw2 <- apply(sample_path_rw2, 1, mean)
+upper_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.975)
+lower_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.025)
+
+
+
+
+result_data <- data.frame(locations = sample_path_rw2$locations, mean_y = mean_y_rw2, upper_y = upper_y_rw2, lower_y = lower_y_rw2)
+plot(result_data$mean_y ~ result_data$locations, type = 'l', xlab = "region of interest", ylab = "y", col = "red", ylim = c(-10,10), lty = 1)
+lines(result_data$upper_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(result_data$lower_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(compute_g(result_data$locations) ~ result_data$locations, lty = 3, col = 'black')
+points(mean_x ~ x, col = 'red')
+
+for (i in sample.int(n_samp,30)) {
+  lines(unlist(sample_path_rw2[,i]) ~ z, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+title(main = "RW2 for sparse covariate: g(.)")
+
+
+
+### compute rIAE and MCI
+# sqrt(mean(abs(compute_g(z) - mean_y_rw2)))
+# mean(upper_y_rw2 - lower_y_rw2)
+
+D <- H[-c(1,n),]
+R <- B[-c(1,n), -c(1,n)]
+
+Q3 <- t(D) %*% solve(R) %*% D
+Q3 <- as(as.matrix(Q3 + Diagonal(n, x = 0.00001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q3,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q3,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+
+
+
+# AGHQ
+set.seed(123)
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+gx <- sample_marginal(quad, n_samp)
+gx <- gx$samps
+gz_list <- Interpolation_vec_v1(t = z_grid, x, gx, "ARIMA")
+
+gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  gz[,i] <- gz_list[[i]]
+}
+
+sample_path <- Matrix(0,nrow = length(z), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(gx[,i],ncol = 1))
+}
+
+
+mean_x <- apply(gx, 1, mean)
+
+
+sample_path_arima <- as.tibble(as.matrix(sample_path))
+sample_path_arima$locations <- c(z_grid,x)
+sample_path_arima <- arrange(sample_path_arima, by = locations)
+
+mean_y_arima <- apply(sample_path_arima, 1, mean)
+upper_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.975)
+lower_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.025)
+
+
+
+
+result_data <- data.frame(locations = sample_path_arima$locations, mean_y = mean_y_arima, upper_y = upper_y_arima, lower_y = lower_y_arima)
+plot(result_data$mean_y ~ result_data$locations, type = 'l', xlab = "region of interest", ylab = "y", col = "red", ylim = c(-10,10), lty = 1)
+lines(result_data$upper_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(result_data$lower_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(compute_g(result_data$locations) ~ result_data$locations, lty = 3, col = 'black')
+points(mean_x ~ x, col = 'red')
+
+for (i in sample.int(n_samp,30)) {
+  lines(unlist(sample_path_arima[,i]) ~ z, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+title(main = "ARIMA for sparse covariate: g(.)")
+
+### compute rIAE and MCI
+# sqrt(mean(abs(compute_g(z) - mean_y_arima)))
+# mean(upper_y_arima - lower_y_arima)
+
+```
+
+The corresponding RIAE and MCI are `r round(sqrt(mean(abs(compute_g(z) - mean_y_rw2))),3)` and `r round(mean(upper_y_rw2 - lower_y_rw2), 3)` for RW2 method; `r round(sqrt(mean(abs(compute_g(z) - mean_y_arima))),3)` and `r round(mean(upper_y_arima - lower_y_arima), 3)` for ARIMA method. The posterior credible intervals are shrunk at the locations of $\{z_i;i\in[M]\}$ that are observed. The conclusion is similar to what we observed for the case when $n = 10$, with the difference between MCI getting smaller.
+
+
+
+
+We then check the first order derivative:
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+sample_path_rw2_1stDeriv <- apply(sample_path_rw2, 2, diff)
+sample_path_rw2_1stDeriv[,2001] <- unlist(sample_path_rw2[,2001])[-1]
+sample_path_rw2_1stDeriv_mean <- apply(sample_path_rw2_1stDeriv, 1, mean)
+sample_path_rw2_1stDeriv_upper <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.975)
+sample_path_rw2_1stDeriv_lower <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z)) ~ z[-1], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "1st deriv", ylim = c(-3,3), main = "RW2 for very sparse covariate: 1st deriv")
+lines(sample_path_rw2_1stDeriv_mean ~ z[-1], col = 'red')
+lines(sample_path_rw2_1stDeriv_upper ~ z[-1], col = 'orange', lty = 2)
+lines(sample_path_rw2_1stDeriv_lower ~ z[-1], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_rw2_1stDeriv[,i]) ~ sample_path_rw2_1stDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean)))
+# mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower)
+
+sample_path_arima_1stDeriv <- apply(sample_path_arima, 2, diff)
+sample_path_arima_1stDeriv[,2001] <- unlist(sample_path_arima[,2001])[-1]
+sample_path_arima_1stDeriv_mean <- apply(sample_path_arima_1stDeriv, 1, mean)
+sample_path_arima_1stDeriv_upper <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.975)
+sample_path_arima_1stDeriv_lower <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z)) ~ z[-1], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "1st deriv", ylim = c(-3,3), main = "ARIMA for very sparse covariate: 1st deriv")
+lines(sample_path_arima_1stDeriv_mean ~ z[-1], col = 'red')
+lines(sample_path_arima_1stDeriv_upper ~ z[-1], col = 'orange', lty = 2)
+lines(sample_path_arima_1stDeriv_lower ~ z[-1], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_arima_1stDeriv[,i]) ~ sample_path_arima_1stDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean)))
+# mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower)
+
+```
+
+
+The corresponding RIAE and MCI are `r round(sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean))),3)` and `r round(mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower), 3)` for RW2 method; `r round(sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean))),3)` and `r round(mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower), 3)` for ARIMA method. We can see that the ARIMA approach yields on average a narrower credible interval 
+
+
+Then we will apply the same procedure to see the second order derivatives yielded by each method.
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+sample_path_rw2_2ndDeriv <- apply(sample_path_rw2, 2, diff, differences = 2)
+sample_path_rw2_2ndDeriv[,2001] <- unlist(sample_path_rw2[,2001])[-c(1,2)]
+sample_path_rw2_2ndDeriv_mean <- apply(sample_path_rw2_2ndDeriv, 1, mean)
+sample_path_rw2_2ndDeriv_upper <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.975)
+sample_path_rw2_2ndDeriv_lower <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z), differences = 2) ~ z[-c(1,2)], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "2nd deriv", ylim = c(-1,1), main = "RW2 for very sparse covariate: 2nd deriv")
+lines(sample_path_rw2_2ndDeriv_mean ~ z[-c(1,2)], col = 'red')
+lines(sample_path_rw2_2ndDeriv_upper ~ z[-c(1,2)], col = 'orange', lty = 2)
+lines(sample_path_rw2_2ndDeriv_lower ~ z[-c(1,2)], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_rw2_2ndDeriv[,i]) ~ sample_path_rw2_2ndDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), 3)
+# round(mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), 3)
+
+sample_path_arima_2ndDeriv <- apply(sample_path_arima, 2, diff, differences = 2)
+sample_path_arima_2ndDeriv[,2001] <- unlist(sample_path_arima[,2001])[-c(1,2)]
+sample_path_arima_2ndDeriv_mean <- apply(sample_path_arima_2ndDeriv, 1, mean)
+sample_path_arima_2ndDeriv_upper <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.975)
+sample_path_arima_2ndDeriv_lower <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z), differences = 2) ~ z[-c(1,2)], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "2nd deriv", ylim = c(-1,1), main = "ARIMA for very sparse covariate: 2nd deriv")
+lines(sample_path_arima_2ndDeriv_mean ~ z[-c(1,2)], col = 'red')
+lines(sample_path_arima_2ndDeriv_upper ~ z[-c(1,2)], col = 'orange', lty = 2)
+lines(sample_path_arima_2ndDeriv_lower ~ z[-c(1,2)], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_arima_2ndDeriv[,i]) ~ sample_path_arima_2ndDeriv[,2001], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), 3)
+# round(mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), 3)
+
+```
+
+For the second order derivative, the corresponding RIAE and MCI are `r round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), 3)` and `r round(mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), 3)` for RW2 method; `r round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), 3)` and `r round(mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), 3)` for ARIMA method.
+
+
+## Case 2: There are 5 repeated measurements at 10 unique locations
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+
+### Simulation with sparse data: (n = 50)
+n <- 50
+z <- seq(0.5,100,0.5)
+x <- seq(1,100, by = 10)
+z_grid <- z[!z %in% x]
+
+compute_g <- function(x){
+  5*sin(0.1*x)
+}
+
+y <- compute_g(rep(x, each = 5)) + rnorm(n, sd = sqrt(3))
+d <- diff(x)
+
+# X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
+X <- as(Matrix(0,nrow = 50, ncol = 10), "dgTMatrix")
+for (i in 1:10) {
+  X[,i] <- c(rep(0, (i-1)*5), rep(1,5), rep(0, (45-(i-1)*5)))
+}
+
+
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+A <- compute_A(d, n = length(x))
+
+
+###### RW2:
+Q1 <- t(H) %*% solve(A) %*% H
+Q1 <- as(Q1 + Diagonal(length(x), x = 0.00001), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q1,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+tmbparams <- list(
+  W = rep(0, length(x)), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+
+# AGHQ
+set.seed(123)
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+
+gx <- sample_marginal(quad, n_samp)
+gx <- gx$samps
+gz_list <- Interpolation_vec_v1(t = z_grid, x, gx, "RW2")
+
+
+# gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
+# for (i in 1:length(gz_list)) {
+#   gz[,i] <- gz_list[[i]]
+# }
+
+# mean_z <- apply(gz, 1, mean)
+# upper_z <- apply(gz, 1, quantile, p = 0.975)
+# lower_z <- apply(gz, 1, quantile, p = 0.025)
+mean_x <- apply(gx, 1, mean)
+# upper_x <- apply(gx, 1, quantile, p = 0.975)
+# lower_x <- apply(gx, 1, quantile, p = 0.025)
+
+
+sample_path <- Matrix(0,nrow = length(z), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(gx[,i],ncol = 1))
+}
+
+
+sample_path_rw2 <- as.tibble(as.matrix(sample_path))
+sample_path_rw2$locations <- c(z_grid,x)
+sample_path_rw2 <- arrange(sample_path_rw2, by = locations)
+
+mean_y_rw2 <- apply(sample_path_rw2, 1, mean)
+upper_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.975)
+lower_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.025)
+
+
+
+
+result_data <- data.frame(locations = sample_path_rw2$locations, mean_y = mean_y_rw2, upper_y = upper_y_rw2, lower_y = lower_y_rw2)
+plot(result_data$mean_y ~ result_data$locations, type = 'l', xlab = "region of interest", ylab = "y", col = "red", ylim = c(-10,10), lty = 1)
+lines(result_data$upper_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(result_data$lower_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(compute_g(result_data$locations) ~ result_data$locations, lty = 3, col = 'black')
+points(mean_x ~ x, col = 'red')
+
+for (i in sample.int(n_samp,30)) {
+  lines(unlist(sample_path_rw2[,i]) ~ z, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+title(main = "RW2 for sparse covariate: g(.)")
+
+
+
+### compute rIAE and MCI
+# sqrt(mean(abs(compute_g(z) - mean_y_rw2)))
+# mean(upper_y_rw2 - lower_y_rw2)
+
+D <- H[-c(1,length(x)),]
+R <- B[-c(1,length(x)), -c(1,length(x))]
+
+Q3 <- t(D) %*% solve(R) %*% D
+Q3 <- as(as.matrix(Q3 + Diagonal(length(x), x = 0.00001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q3,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q3,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 5,
+  alpha1 = 0.1,
+  u2 = 5,
+  alpha2 = 0.1
+)
+
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+
+
+
+# AGHQ
+set.seed(123)
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+gx <- sample_marginal(quad, n_samp)
+gx <- gx$samps
+gz_list <- Interpolation_vec_v1(t = z_grid, x, gx, "ARIMA")
+
+gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  gz[,i] <- gz_list[[i]]
+}
+
+sample_path <- Matrix(0,nrow = length(z), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(gx[,i],ncol = 1))
+}
+
+
+mean_x <- apply(gx, 1, mean)
+
+
+sample_path_arima <- as.tibble(as.matrix(sample_path))
+sample_path_arima$locations <- c(z_grid,x)
+sample_path_arima <- arrange(sample_path_arima, by = locations)
+
+mean_y_arima <- apply(sample_path_arima, 1, mean)
+upper_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.975)
+lower_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.025)
+
+
+
+
+result_data <- data.frame(locations = sample_path_arima$locations, mean_y = mean_y_arima, upper_y = upper_y_arima, lower_y = lower_y_arima)
+plot(result_data$mean_y ~ result_data$locations, type = 'l', xlab = "region of interest", ylab = "y", col = "red", ylim = c(-10,10), lty = 1)
+lines(result_data$upper_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(result_data$lower_y ~ result_data$locations, lty = 2, col = 'orange')
+lines(compute_g(result_data$locations) ~ result_data$locations, lty = 3, col = 'black')
+points(mean_x ~ x, col = 'red')
+
+for (i in sample.int(n_samp,30)) {
+  lines(unlist(sample_path_arima[,i]) ~ z, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+title(main = "ARIMA for sparse covariate: g(.)")
+
+### compute rIAE and MCI
+# sqrt(mean(abs(compute_g(z) - mean_y_arima)))
+# mean(upper_y_arima - lower_y_arima)
+
+```
+
+
+The corresponding RIAE and MCI are `r round(sqrt(mean(abs(compute_g(z) - mean_y_rw2))),3)` and `r round(mean(upper_y_rw2 - lower_y_rw2), 3)` for RW2 method; `r round(sqrt(mean(abs(compute_g(z) - mean_y_arima))),3)` and `r round(mean(upper_y_arima - lower_y_arima), 3)` for ARIMA method. The posterior credible intervals are shrunk at the locations of $\{z_i;i\in[M]\}$ that are observed. The conclusion is similar to what we observed for the case when $n = 10$, with the difference between MCI getting smaller.
+
+
+
+
+We then check the first order derivative:
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+sample_path_rw2_1stDeriv <- apply(sample_path_rw2, 2, diff)
+sample_path_rw2_1stDeriv[,(n_samp + 1)] <- unlist(sample_path_rw2[,(n_samp + 1)])[-1]
+sample_path_rw2_1stDeriv_mean <- apply(sample_path_rw2_1stDeriv, 1, mean)
+sample_path_rw2_1stDeriv_upper <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.975)
+sample_path_rw2_1stDeriv_lower <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z)) ~ z[-1], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "1st deriv", ylim = c(-3,3), main = "RW2 for very sparse covariate: 1st deriv")
+lines(sample_path_rw2_1stDeriv_mean ~ z[-1], col = 'red')
+lines(sample_path_rw2_1stDeriv_upper ~ z[-1], col = 'orange', lty = 2)
+lines(sample_path_rw2_1stDeriv_lower ~ z[-1], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_rw2_1stDeriv[,i]) ~ sample_path_rw2_1stDeriv[,(n_samp + 1)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean)))
+# mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower)
+
+sample_path_arima_1stDeriv <- apply(sample_path_arima, 2, diff)
+sample_path_arima_1stDeriv[,(n_samp + 1)] <- unlist(sample_path_arima[,(n_samp + 1)])[-1]
+sample_path_arima_1stDeriv_mean <- apply(sample_path_arima_1stDeriv, 1, mean)
+sample_path_arima_1stDeriv_upper <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.975)
+sample_path_arima_1stDeriv_lower <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z)) ~ z[-1], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "1st deriv", ylim = c(-3,3), main = "ARIMA for very sparse covariate: 1st deriv")
+lines(sample_path_arima_1stDeriv_mean ~ z[-1], col = 'red')
+lines(sample_path_arima_1stDeriv_upper ~ z[-1], col = 'orange', lty = 2)
+lines(sample_path_arima_1stDeriv_lower ~ z[-1], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_arima_1stDeriv[,i]) ~ sample_path_arima_1stDeriv[,(n_samp + 1)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean)))
+# mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower)
+
+```
+
+
+The corresponding RIAE and MCI are `r round(sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean))),3)` and `r round(mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower), 3)` for RW2 method; `r round(sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean))),3)` and `r round(mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower), 3)` for ARIMA method. We can see that the ARIMA approach yields on average a narrower credible interval 
+
+
+Then we will apply the same procedure to see the second order derivatives yielded by each method.
+
+```{r echo=FALSE, fig.show="hold", out.width="50%", message=FALSE, warning=FALSE}
+sample_path_rw2_2ndDeriv <- apply(sample_path_rw2, 2, diff, differences = 2)
+sample_path_rw2_2ndDeriv[,(n_samp + 1)] <- unlist(sample_path_rw2[,(n_samp + 1)])[-c(1,2)]
+sample_path_rw2_2ndDeriv_mean <- apply(sample_path_rw2_2ndDeriv, 1, mean)
+sample_path_rw2_2ndDeriv_upper <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.975)
+sample_path_rw2_2ndDeriv_lower <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z), differences = 2) ~ z[-c(1,2)], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "2nd deriv", ylim = c(-1,1), main = "RW2 for very sparse covariate: 2nd deriv")
+lines(sample_path_rw2_2ndDeriv_mean ~ z[-c(1,2)], col = 'red')
+lines(sample_path_rw2_2ndDeriv_upper ~ z[-c(1,2)], col = 'orange', lty = 2)
+lines(sample_path_rw2_2ndDeriv_lower ~ z[-c(1,2)], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_rw2_2ndDeriv[,i]) ~ sample_path_rw2_2ndDeriv[,(n_samp + 1)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), 3)
+# round(mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), 3)
+
+sample_path_arima_2ndDeriv <- apply(sample_path_arima, 2, diff, differences = 2)
+sample_path_arima_2ndDeriv[,(n_samp + 1)] <- unlist(sample_path_arima[,(n_samp + 1)])[-c(1,2)]
+sample_path_arima_2ndDeriv_mean <- apply(sample_path_arima_2ndDeriv, 1, mean)
+sample_path_arima_2ndDeriv_upper <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.975)
+sample_path_arima_2ndDeriv_lower <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.025)
+
+plot(diff(compute_g(z), differences = 2) ~ z[-c(1,2)], type = 'l', col = 'black', 
+     xlab = "region of interest", 
+     ylab = "2nd deriv", ylim = c(-1,1), main = "ARIMA for very sparse covariate: 2nd deriv")
+lines(sample_path_arima_2ndDeriv_mean ~ z[-c(1,2)], col = 'red')
+lines(sample_path_arima_2ndDeriv_upper ~ z[-c(1,2)], col = 'orange', lty = 2)
+lines(sample_path_arima_2ndDeriv_lower ~ z[-c(1,2)], col = 'orange', lty = 2)
+
+for (i in sample.int(n_samp,5)) {
+  lines(unlist(sample_path_arima_2ndDeriv[,i]) ~ sample_path_arima_2ndDeriv[,(n_samp + 1)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+# round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), 3)
+# round(mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), 3)
+
+```
+
+For the second order derivative, the corresponding RIAE and MCI are `r round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), 3)` and `r round(mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), 3)` for RW2 method; `r round(sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), 3)` and `r round(mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), 3)` for ARIMA method.
+
+
+
+## Summary
+
+(Summarize what you currently observed with these cases; what will be done for the next step:
+1. Replication study using independent samples.
+2. Study the relationship between (aggregated) difference in MCI, with the nominal coverage rate.
+3. Study the more complex functional/operator defined for the function $g()$.)
+
+
+
+
+
+
+# Conclusion:
+
+From the first three set of simulation studies (where $n$ is changing from small to large), we can make the observation that, the two Bayesian smoothing methods perform similar in terms of MSE, but the ARIMA method gives smaller values of MCW. This difference gets larger as the sample size $n$ declines.
+
+The same conclusion is also supported by the second sets of simulation studies (where the region of interest is changing). Unless the sample size is large enough and the spacing between locations is small, ARIMA method yields more favorable inferential result than the RW2 method. 
+
+

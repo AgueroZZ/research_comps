@@ -1,0 +1,567 @@
+library(INLA)
+library(mgcv)
+library(TMB)
+library(aghq)
+
+
+################# Generating Gaussian Data for Smoothing ##############
+######################################################################
+
+
+#### Assuming true sigma is 1, but unknown.
+n <- 50
+x <- seq(1,50, by = 1)
+a <- min(x)
+b <- max(x)
+y <- 5*sin(0.5*x) + rnorm(n, sd = 1)
+d <- diff(x)
+X <- as(as.matrix(Diagonal(n)), "dgTMatrix")
+
+
+
+#### Approach 1: Using RW2 model with Diaognal Approximation
+compute_H_rue <- function(d,n){
+  H <- matrix(data = 0, nrow = n, ncol = n)
+  for (i in 2:(nrow(H)-1)) {
+    H[i,i] <- -(1/d[i-1]+1/d[i])
+    H[i,i-1] <- 1/d[i-1]
+    H[i,i+1] <- 1/d[i]
+  }
+  H
+}
+compute_B <- function(d,n){
+  B <-matrix(0, nrow = n, ncol = n)
+  B[1,1] <- d[1]/3
+  B[1,2] <- d[1]/6
+  B[n,n-1] <- d[n-1]/6
+  B[n,n] <- d[n-1]/3
+  for (i in 2:(nrow(B)-1)) {
+    B[i,i-1] <- d[i-1]/6
+    B[i,i] <- (d[i-1]+d[i])/3
+    B[i,i+1] <- d[i]/6
+  }
+  B
+}
+compute_A <- function(d,n){
+  A <-matrix(0, nrow = n, ncol = n)
+  A[1,1] <- d[1]/2
+  A[n,n] <- d[n-1]/2
+  for (i in 2:(nrow(A)-1)) {
+    A[i,i] <- (d[i-1]+d[i])/2
+  }
+  A
+}
+H <- compute_H_rue(d,n = length(x))
+B <- compute_B(d,n = length(x))
+A <- compute_A(d, n = length(x))
+Q1 <- t(H) %*% solve(A) %*% H
+Q1 <- as(Q1 + Diagonal(n, x = 0.0001), "dgTMatrix")
+
+
+compile("02_RW2Comparison.cpp")
+dyn.load(dynlib("02_RW2Comparison"))
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q1,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 2,
+  alpha1 = 0.5,
+  u2 = 2,
+  alpha2 = 0.5
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+# Plot of theta posterior
+logpostsigma <- compute_pdf_and_cdf(quad$marginals[[1]],list(totheta = function(x) -2*log(x),fromtheta = function(x) exp(-x/2)))
+with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
+
+# Use evaluation vector to reconstruct the fitted function:
+construct_fitted <- function(weights){
+  knots <- x
+  splineFunc <- splines::bs(location_interest, degree = 1, knots = knots)
+  fitted_func <- splineFunc[,-(length(knots) + 1)] %*% matrix(weights, ncol = 1)
+  as.numeric(fitted_func)
+}
+
+compute_deriv <- function(values){
+  values <- diff(values)
+  values
+}
+
+
+
+# Inference for W
+samps1 <- sample_marginal(quad,1e03)
+resolution = 0.001
+location_interest <- seq(a,b, by = resolution)
+fitted_func <- construct_fitted(weights = samps1$samps[,1])
+plot(fitted_func~location_interest, col = "blue", type = "l")
+
+# Construct samples for g(.):
+sample_func_Method1 <- apply(samps1$samps, MARGIN = 2, FUN = construct_fitted)
+sample_deriv_Method1 <- apply(sample_func_Method1, 2, compute_deriv)
+sample_deriv_second_Method1 <- apply(sample_deriv_Method1, 2, compute_deriv)
+
+
+
+# Posterior mean
+W1 <- apply(samps1$samps,1,mean)
+mean_func_Method1 <- apply(sample_func_Method1,1,mean)
+upper_func_Method1 <- apply(sample_func_Method1,1,quantile, probs = 0.975)
+lower_func_Method1 <- apply(sample_func_Method1,1,quantile, probs = 0.025)
+
+
+### Plot of function:
+plot(mean_func_Method1~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func_Method1 ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func_Method1 ~ location_interest, col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,50)) {
+  lines(sample_func_Method1[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Integrated error:
+compute_g <- function(x){
+  5*sin(0.5*x)
+}
+true_g <- compute_g(location_interest)
+mean(abs(mean_func_Method1 - true_g))/mean(abs(true_g))
+
+true_gamma <- diff(compute_g(x), differences = 2)
+
+
+### Plot of function derivative:
+mean_deriv_Method1 <- apply(sample_deriv_Method1,1,mean)
+upper_deriv_Method1 <- apply(sample_deriv_Method1,1,quantile, probs = 0.975)
+lower_deriv_Method1 <- apply(sample_deriv_Method1,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_Method1~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv_Method1 ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv_Method1 ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv_Method1[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Integrated error:
+compute_g <- function(x){
+  5*sin(0.5*x)
+}
+true_g <- compute_g(location_interest)
+mean(abs(mean_deriv_Method1 - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
+
+
+
+
+### Plot of function second derivative:
+mean_deriv_second_Method1 <- apply(sample_deriv_second_Method1,1,mean)
+upper_deriv_second_Method1 <- apply(sample_deriv_second_Method1,1,quantile, probs = 0.975)
+lower_deriv_second_Method1 <- apply(sample_deriv_second_Method1,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second_Method1~location_interest[-(1:2)], col = "red", type = "l", ylim=c(-0.01,0.01), ylab = "2nd derivative", xlab = "x")
+# lines(upper_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second_Method1[,i] ~ location_interest[-(1:2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+mean(abs(mean_deriv_second_Method1 - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
+
+
+
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff_Method1 <- apply(samps1$samps,2,diff, differences = 2)
+mean_second_diff_Method1 <- apply(second_diff_Method1,1,mean)
+upper_second_diff_Method1 <- apply(second_diff_Method1,1,quantile, probs = 0.975)
+lower_second_diff_Method1 <- apply(second_diff_Method1,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff_Method1 ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-3,3), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff_Method1 ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff_Method1 ~ x[-c(1,2)], col = "orange", lty = "dashed")
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+for (i in sample.int(1000,10)) {
+  lines(second_diff_Method1[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+acf(second_diff_Method1[,1], lag.max = 10)
+acf(mean_second_diff_Method1, lag.max = 10)
+
+MSE_gamma_method1 <- mean((mean_second_diff_Method1 - true_gamma)^2)
+
+
+#### Approach 2: Using RW2 model without Diagonal Approximation
+Q2 <- t(H) %*% solve(B) %*% H
+Q2 <- as(as.matrix(Q2 + Diagonal(n, x = 0.0001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q2,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q2,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 2,
+  alpha1 = 0.5,
+  u2 = 2,
+  alpha2 = 0.5
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+# Plot of theta posterior
+logpostsigma <- compute_pdf_and_cdf(quad$marginals[[1]],list(totheta = function(x) -2*log(x),fromtheta = function(x) exp(-x/2)))
+with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
+
+
+# Inference for W
+samps2 <- sample_marginal(quad,1e03)
+resolution = 0.001
+location_interest <- seq(a,b, by = resolution)
+fitted_func <- construct_fitted(weights = samps2$samps[,1])
+plot(fitted_func~location_interest, col = "blue", type = "l")
+
+# Construct samples for g(.):
+sample_func_Method2 <- apply(samps2$samps, MARGIN = 2, FUN = construct_fitted)
+sample_deriv_Method2 <- apply(sample_func_Method2, 2, compute_deriv)
+sample_deriv_second_Method2 <- apply(sample_deriv_Method2, 2, compute_deriv)
+
+
+
+
+# Posterior mean
+W2 <- apply(samps2$samps,1,mean)
+mean_func_Method2 <- apply(sample_func_Method2,1,mean)
+upper_func_Method2 <- apply(sample_func_Method2,1,quantile, probs = 0.975)
+lower_func_Method2 <- apply(sample_func_Method2,1,quantile, probs = 0.025)
+
+
+### Plot of function:
+plot(mean_func_Method2~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func_Method2 ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func_Method2 ~ location_interest, col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,50)) {
+  lines(sample_func_Method2[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+
+### Plot of function derivative:
+mean_deriv_Method2 <- apply(sample_deriv_Method2,1,mean)
+upper_deriv_Method2 <- apply(sample_deriv_Method2,1,quantile, probs = 0.975)
+lower_deriv_Method2 <- apply(sample_deriv_Method2,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_Method2~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv_Method2 ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv_Method2 ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv_Method2[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Plot of function second derivative:
+mean_deriv_second_Method2 <- apply(sample_deriv_second_Method2,1,mean)
+upper_deriv_second_Method2 <- apply(sample_deriv_second_Method2,1,quantile, probs = 0.975)
+lower_deriv_second_Method2 <- apply(sample_deriv_second_Method2,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second_Method2~location_interest[-(1:2)], col = "red", type = "l", ylim=c(-0.01,0.01), ylab = "2nd derivative", xlab = "x")
+# lines(upper_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second ~ location_interest[-(1:2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second_Method2[,i] ~ location_interest[-(1:2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+mean(abs(mean_func_Method2 - true_g))/mean(abs(true_g))
+mean(abs(mean_deriv_Method2 - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
+mean(abs(mean_deriv_second_Method2 - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
+
+
+
+
+### Look at the second order differences at original locations (since spacing are equal)
+second_diff <- apply(samps2$samps,2,diff, differences = 2)
+mean_second_diff <- apply(second_diff,1,mean)
+upper_second_diff <- apply(second_diff,1,quantile, probs = 0.975)
+lower_second_diff <- apply(second_diff,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-3,3), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff ~ x[-c(1,2)], col = "orange", lty = "dashed")
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+for (i in sample.int(1000,10)) {
+  lines(second_diff[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+MSE_gamma_method2 <- mean((mean_second_diff - true_gamma)^2)
+
+
+#### Approach 3: Using ARIMA method
+D <- H[-c(1,n),]
+R <- B[-c(1,n), -c(1,n)]
+
+Q3 <- t(D) %*% solve(R) %*% D
+Q3 <- as(as.matrix(Q3 + Diagonal(n, x = 0.0001)), "dgTMatrix")
+
+tmbdat <- list(
+  # Design matrix
+  X = X,
+  # Penalty(Precision) matrix
+  P = Q3,
+  # Log determinant of penalty matrix (without the sigma part)
+  logPdet = as.numeric(determinant(Q3,logarithm = TRUE)$modulus),
+  # Response
+  y = y,
+  # PC Prior params
+  u1 = 2,
+  alpha1 = 0.5,
+  u2 = 2,
+  alpha2 = 0.5
+)
+
+tmbparams <- list(
+  W = rep(0, n), # W = c(U); U = B-Spline coefficients
+  theta1 = 0, # -2log(sigma)
+  theta2 = 0
+)
+
+ff <- TMB::MakeADFun(
+  data = tmbdat,
+  parameters = tmbparams,
+  random = "W",
+  DLL = "02_RW2Comparison",
+  silent = TRUE
+)
+
+# Hessian not implemented for RE models
+ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
+# AGHQ
+quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+
+# Plot of theta posterior
+logpostsigma <- compute_pdf_and_cdf(quad$marginals[[1]],list(totheta = function(x) -2*log(x),fromtheta = function(x) exp(-x/2)))
+with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
+
+
+# Inference for W
+samps3 <- sample_marginal(quad,1e03)
+W3 <- apply(samps3$samps,1,mean)
+
+
+construct_fitted_cubic <- function(weights){
+  spline_fitted <- spline(x, y = weights, xout = location_interest, method = "natural",
+                          xmin = min(x), xmax = max(x), ties = mean)
+  spline_fitted$y
+}
+
+
+
+
+######## Cubic way:
+sample_func_Method3_cubic <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted_cubic)
+mean_func_Method3_cubic <- apply(sample_func_Method3_cubic,1,mean)
+sample_deriv_Method3_cubic <- apply(sample_func_Method3_cubic, 2, compute_deriv)
+sample_deriv_second_Method3_cubic <- apply(sample_deriv_Method3_cubic, 2, compute_deriv)
+upper_func_cubic <- apply(sample_func_Method3_cubic,1,quantile, probs = 0.975)
+lower_func_cubic <- apply(sample_func_Method3_cubic,1,quantile, probs = 0.025)
+
+
+### Plot of function:
+plot(mean_func_Method3_cubic~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func_cubic ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func_cubic ~ location_interest, col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,50)) {
+  lines(sample_func_Method3_cubic[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Plot of function derivative:
+mean_deriv_cubic <- apply(sample_deriv_Method3_cubic,1,mean)
+upper_deriv_cubic <- apply(sample_deriv_Method3_cubic,1,quantile, probs = 0.975)
+lower_deriv_cubic <- apply(sample_deriv_Method3_cubic,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_cubic~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv_cubic ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv_cubic ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv_Method3_cubic[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Plot of function 2nd derivative:
+mean_deriv_second_cubic <- apply(sample_deriv_second_Method3_cubic,1,mean)
+upper_deriv_second_cubic <- apply(sample_deriv_second_Method3_cubic,1,quantile, probs = 0.975)
+lower_deriv_second_cubic <- apply(sample_deriv_second_Method3_cubic,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second_cubic~location_interest[-c(1,2)], col = "red", type = "l", ylab = "2nd derivative", xlab = "x", ylim = c(-9e-06,9e-06))
+# lines(upper_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second_Method3_cubic[,i] ~ location_interest[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+mean(abs(mean_func_Method3_cubic - true_g))/mean(abs(true_g))
+mean(abs(mean_deriv_cubic - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
+mean(abs(mean_deriv_second_cubic - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
+
+
+
+
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff_cubic <- apply(samps3$samps,2,diff, differences = 2)
+mean_second_diff_cubic <- apply(second_diff_cubic,1,mean)
+upper_second_diff_cubic <- apply(second_diff_cubic,1,quantile, probs = 0.975)
+lower_second_diff_cubic <- apply(second_diff_cubic,1,quantile, probs = 0.025)
+
+
+
+
+mean(abs(mean_func_Method3_cubic - true_g))/mean(abs(true_g))
+mean(abs(mean_deriv_cubic - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
+mean(abs(mean_deriv_second_cubic - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
+
+
+
+### Plot of second order differences:
+plot(mean_second_diff_cubic ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-3,3), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff_cubic ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff_cubic ~ x[-c(1,2)], col = "orange", lty = "dashed")
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+
+for (i in sample.int(1000,10)) {
+  lines(second_diff_cubic[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+MSE_gamma_method3 <- mean((mean_second_diff_cubic - true_gamma)^2)
+
+
+
+######## Linear way:
+sample_func_linear <- apply(samps3$samps, MARGIN = 2, FUN = construct_fitted)
+mean_func_linear <- apply(sample_func_linear,1,mean)
+upper_func_linear <- apply(sample_func_linear,1,quantile, prob = 0.975)
+lower_func_linear <- apply(sample_func_linear,1,quantile, prob = 0.025)
+
+
+### Plot of function:
+plot(mean_func_linear~location_interest, col = "red", type = "l", ylim=c(-6,6), xlab = "x", ylab = "g(.)")
+lines(upper_func_linear ~ location_interest, col = "orange", lty = "dashed")
+lines(lower_func_linear ~ location_interest, col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,50)) {
+  lines(sample_func_linear[,i] ~ location_interest, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+sample_deriv_linear <- apply(sample_func_linear, 2, compute_deriv)
+sample_deriv_second_linear <- apply(sample_deriv_linear, 2, compute_deriv)
+upper_deriv_linear <- apply(sample_deriv_linear,1,quantile, probs = 0.975)
+lower_deriv_linear <- apply(sample_deriv_linear,1,quantile, probs = 0.025)
+mean_deriv_linear <- apply(sample_deriv_linear, 1, mean)
+
+### Plot of function derivative:
+
+plot(mean_deriv_linear~location_interest[-1], col = "red", type = "l", ylab = "1st derivative", xlab = "x")
+lines(upper_deriv_linear ~ location_interest[-1], col = "orange", lty = "dashed")
+lines(lower_deriv_linear ~ location_interest[-1], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,5)) {
+  lines(sample_deriv_linear[,i] ~ location_interest[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+### Plot of function 2nd derivative:
+mean_deriv_second_linear <- apply(sample_deriv_second_linear,1,mean)
+upper_deriv_second_linear <- apply(sample_deriv_second_linear,1,quantile, probs = 0.975)
+lower_deriv_second_linear <- apply(sample_deriv_second_linear,1,quantile, probs = 0.025)
+
+
+plot(mean_deriv_second_linear~location_interest[-c(1,2)], col = "red", type = "l", ylab = "2nd derivative", xlab = "x", ylim = c(-0.01,0.01))
+# lines(upper_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+# lines(lower_deriv_second_cubic ~ location_interest[-c(1,2)], col = "orange", lty = "dashed")
+
+for (i in sample.int(1000,1)) {
+  lines(sample_deriv_second_linear[,i] ~ location_interest[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Look at the second order differences at original locations (since spacings are equal)
+second_diff_linear <- apply(samps3$samps,2,diff, differences = 2)
+mean_second_diff_linear <- apply(second_diff_linear,1,mean)
+upper_second_diff_linear <- apply(second_diff_linear,1,quantile, probs = 0.975)
+lower_second_diff_linear <- apply(second_diff_linear,1,quantile, probs = 0.025)
+
+### Plot of second order differences:
+plot(mean_second_diff_linear ~ x[-c(1,2)], col = "red", type = "l", ylim=c(-3,3), xlab = "x", ylab = "second order difference")
+lines(upper_second_diff_linear ~ x[-c(1,2)], col = "orange", lty = "dashed")
+lines(lower_second_diff_linear ~ x[-c(1,2)], col = "orange", lty = "dashed")
+points(true_gamma ~ x[-c(1,2)], col = 'purple')
+
+for (i in sample.int(1000,10)) {
+  lines(second_diff_linear[,i] ~ x[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+mean(abs(mean_func_linear - true_g))/mean(abs(true_g))
+mean(abs(mean_deriv_linear - compute_deriv(true_g)))/mean(abs(compute_deriv(true_g)))
+mean(abs(mean_deriv_second_linear - compute_deriv(compute_deriv(true_g))))/mean(abs(compute_deriv(compute_deriv(true_g))))
