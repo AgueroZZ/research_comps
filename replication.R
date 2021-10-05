@@ -3,10 +3,12 @@ library(TMB)
 library(Matrix)
 library(tidyverse)
 library(foreach)
+library(parallel)
 
-# cl <- parallel::makeCluster(10)
-# doParallel::registerDoParallel(cl)
-# 
+
+cl <- parallel::makeCluster(4)
+doParallel::registerDoParallel(cl)
+
 
 compute_H_rue <- function(d,n){
   H <- matrix(data = 0, nrow = n, ncol = n)
@@ -109,7 +111,6 @@ Interpolation_vec_v1 <- function(t, x_grid, gx, GP, n_samples = 500){
   samples
 }
 compile(file = "02_RW2Comparison.cpp")
-dyn.load(dynlib("02_RW2Comparison"))
 
 
 
@@ -121,8 +122,8 @@ dyn.load(dynlib("02_RW2Comparison"))
 ### M: number of locations in the high resolution grids
 ### nsamp: number of samples to be drawn from the posterior distribution
 ### return: dataframe with four columns, two column for each method
-
 replicate_for_summary_once <- function(dis = 20, k_n = 1, n_samp = 2000){
+  dyn.load(dynlib("02_RW2Comparison"))
   z <- seq(0.5,100,0.5)
   x <- seq(1,100, dis*0.5)
   z_grid <- z[!z %in% x]
@@ -137,7 +138,7 @@ replicate_for_summary_once <- function(dis = 20, k_n = 1, n_samp = 2000){
   for (i in 1:k) {
     X[,i] <- c(rep(0, (i-1)*k_n), rep(1,k_n), rep(0, ((n-k_n)-(i-1)*k_n)))
   }
-
+  
   
   H <- compute_H_rue(d,n = length(x))
   B <- compute_B(d,n = length(x))
@@ -193,11 +194,11 @@ replicate_for_summary_once <- function(dis = 20, k_n = 1, n_samp = 2000){
   sample_path_rw2$locations <- c(z_grid,x)
   sample_path_rw2 <- arrange(sample_path_rw2, by = locations)
   mean_y_rw2 <- apply(sample_path_rw2, 1, mean)
-  upper_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.975)
-  lower_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.025)
+  upper_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.95)
+  lower_y_rw2 <- apply(sample_path_rw2, 1, quantile, p = 0.05)
   rIAE_rw2 <- sqrt(mean(abs(compute_g(z) - mean_y_rw2)))
   MCI_rw2 <- mean(upper_y_rw2 - lower_y_rw2)
-  
+  CR_rw2 <- mean(upper_y_rw2 >= compute_g(z) & lower_y_rw2 <= compute_g(z))
   ######
   
   D <- H[-c(1,length(x)),]
@@ -246,69 +247,120 @@ replicate_for_summary_once <- function(dis = 20, k_n = 1, n_samp = 2000){
   sample_path_arima$locations <- c(z_grid,x)
   sample_path_arima <- arrange(sample_path_arima, by = locations)
   mean_y_arima <- apply(sample_path_arima, 1, mean)
-  upper_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.975)
-  lower_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.025)
+  upper_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.95)
+  lower_y_arima <- apply(sample_path_arima, 1, quantile, p = 0.05)
   rIAE_arima <- sqrt(mean(abs(compute_g(z) - mean_y_arima)))
   MCI_arima <- mean(upper_y_arima - lower_y_arima)
-  result <- tibble(rIAE_RW2 = rIAE_rw2, rIAE_ARIMA = rIAE_arima, MCI_RW2 = MCI_rw2, MCI_ARIMA = MCI_arima)
+  CR_arima <- mean(upper_y_arima >= compute_g(z) & lower_y_arima <= compute_g(z))
+  
+  result <- tibble(rIAE_RW2 = rIAE_rw2, rIAE_ARIMA = rIAE_arima, MCI_RW2 = MCI_rw2, MCI_ARIMA = MCI_arima, CR_RW2 = CR_rw2, CR_ARIMA = CR_arima)
   
   #### First deriv:
   sample_path_rw2_1stDeriv <- apply(sample_path_rw2, 2, diff)
   sample_path_rw2_1stDeriv[,(n_samp + 1)] <- unlist(sample_path_rw2[,(n_samp + 1)])[-1]
   sample_path_rw2_1stDeriv_mean <- apply(sample_path_rw2_1stDeriv, 1, mean)
-  sample_path_rw2_1stDeriv_upper <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.975)
-  sample_path_rw2_1stDeriv_lower <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.025)
+  sample_path_rw2_1stDeriv_upper <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.95)
+  sample_path_rw2_1stDeriv_lower <- apply(sample_path_rw2_1stDeriv, 1, quantile, p = 0.05)
+  CR_rw2_1st <- mean(sample_path_rw2_1stDeriv_upper >= diff(compute_g(z)) & sample_path_rw2_1stDeriv_lower <= diff(compute_g(z)) )
   
   
   sample_path_arima_1stDeriv <- apply(sample_path_arima, 2, diff)
   sample_path_arima_1stDeriv[,(n_samp + 1)] <- unlist(sample_path_arima[,(n_samp + 1)])[-1]
   sample_path_arima_1stDeriv_mean <- apply(sample_path_arima_1stDeriv, 1, mean)
-  sample_path_arima_1stDeriv_upper <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.975)
-  sample_path_arima_1stDeriv_lower <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.025)
+  sample_path_arima_1stDeriv_upper <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.95)
+  sample_path_arima_1stDeriv_lower <- apply(sample_path_arima_1stDeriv, 1, quantile, p = 0.05)
+  CR_arima_1st <- mean(sample_path_arima_1stDeriv_upper >= diff(compute_g(z)) & sample_path_arima_1stDeriv_lower <= diff(compute_g(z)) )
   
   
-  result_1st <- tibble(rIAE_RW2_1st = sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean))), rIAE_ARIMA_1st = sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean))), MCI_RW2_1st = mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower), MCI_ARIMA_1st = mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower))
+  result_1st <- tibble(rIAE_RW2_1st = sqrt(mean(abs(diff(compute_g(z)) - sample_path_rw2_1stDeriv_mean))), rIAE_ARIMA_1st = sqrt(mean(abs(diff(compute_g(z)) - sample_path_arima_1stDeriv_mean))), MCI_RW2_1st = mean(sample_path_rw2_1stDeriv_upper - sample_path_rw2_1stDeriv_lower), MCI_ARIMA_1st = mean(sample_path_arima_1stDeriv_upper - sample_path_arima_1stDeriv_lower), CR_RW2_1st = CR_rw2_1st, CR_ARIMA_1st = CR_arima_1st)
   result <- cbind(result, result_1st)
   
   ### Second deriv
   sample_path_rw2_2ndDeriv <- apply(sample_path_rw2, 2, diff, differences = 2)
   sample_path_rw2_2ndDeriv[,(n_samp + 1)] <- unlist(sample_path_rw2[,(n_samp + 1)])[-c(1,2)]
   sample_path_rw2_2ndDeriv_mean <- apply(sample_path_rw2_2ndDeriv, 1, mean)
-  sample_path_rw2_2ndDeriv_upper <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.975)
-  sample_path_rw2_2ndDeriv_lower <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.025)
+  sample_path_rw2_2ndDeriv_upper <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.95)
+  sample_path_rw2_2ndDeriv_lower <- apply(sample_path_rw2_2ndDeriv, 1, quantile, p = 0.05)
+  CR_rw2_2nd <- mean(sample_path_rw2_2ndDeriv_upper >= diff(compute_g(z), differences = 2) & sample_path_rw2_2ndDeriv_lower <= diff(compute_g(z), differences = 2))
   
   sample_path_arima_2ndDeriv <- apply(sample_path_arima, 2, diff, differences = 2)
   sample_path_arima_2ndDeriv[,(n_samp + 1)] <- unlist(sample_path_arima[,(n_samp + 1)])[-c(1,2)]
   sample_path_arima_2ndDeriv_mean <- apply(sample_path_arima_2ndDeriv, 1, mean)
-  sample_path_arima_2ndDeriv_upper <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.975)
-  sample_path_arima_2ndDeriv_lower <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.025)
+  sample_path_arima_2ndDeriv_upper <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.95)
+  sample_path_arima_2ndDeriv_lower <- apply(sample_path_arima_2ndDeriv, 1, quantile, p = 0.05)
+  CR_arima_2nd <- mean(sample_path_arima_2ndDeriv_upper >= diff(compute_g(z), differences = 2) & sample_path_arima_2ndDeriv_lower <= diff(compute_g(z), differences = 2))
   
-  result_2nd <- tibble(rIAE_RW2_2nd = sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), rIAE_ARIMA_2nd = sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), MCI_RW2_2nd = mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), MCI_ARIMA_2nd = mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower))
+  result_2nd <- tibble(rIAE_RW2_2nd = sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_rw2_2ndDeriv_mean))), rIAE_ARIMA_2nd = sqrt(mean(abs(diff(compute_g(z), differences = 2) - sample_path_arima_2ndDeriv_mean))), MCI_RW2_2nd = mean(sample_path_rw2_2ndDeriv_upper - sample_path_rw2_2ndDeriv_lower), MCI_ARIMA_2nd = mean(sample_path_arima_2ndDeriv_upper - sample_path_arima_2ndDeriv_lower), CR_RW2_2nd = CR_rw2_2nd, CR_ARIMA_2nd = CR_arima_2nd)
   result <- cbind(result, result_2nd)
   result
-
+  
 }
 
+
+
+
+set.seed(123)
+time_begin <- Sys.time()
 result <- replicate_for_summary_once()
 # time_begin <- Sys.time()
 # result <- rbind(result, replicate_for_summary_once())
 # time_end <- Sys.time()
 # time_end - time_begin
 ## takes around 20 seconds per iteration
-for (i in 1:99) {
-  result <- rbind(result, replicate_for_summary_once())
-}
 
-result_n50 <- replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000)
-for (i in 1:99) {
-  result_n50 <- rbind(result_n50, replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000))
+# for (i in 1:99) {
+#   result <- rbind(result, replicate_for_summary_once())
+# }
+# time_end <- Sys.time()
+# time_end - time_begin
+# ### five iterations take 3.602 mins
+# save(file = "resultCase1.rda", result)
+
+
+time_begin <- Sys.time()
+result  <- foreach(i = 1:100, .combine='rbind', .packages = c("aghq", "TMB", "Matrix", "tidyverse")) %dopar% {
+  replicate_for_summary_once()
 }
+time_end <- Sys.time()
+time_end - time_begin
+save(file = "resultCase1.rda", result)
+
+### five iterations take 2.182191 mins
+
+# 
+# result_n50 <- replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000)
+# for (i in 1:99) {
+#   result_n50 <- rbind(result_n50, replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000))
+# }
+# save(file = "resultCase2.rda", result_n50)
+
+time_begin <- Sys.time()
+result_n50  <- foreach(i = 1:100, .combine='rbind', .packages = c("aghq", "TMB", "Matrix", "tidyverse")) %dopar% {
+  replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000)
+}
+time_end <- Sys.time()
+time_end - time_begin
+save(file = "resultCase2.rda", result_n50)
+
+
+
 # result_n50 <- foreach(i = 1:99, .combine = 'rbind', packages = c("Matrix", 'aghq')) %dopar% {
 #   replicate_for_summary_once(dis = 4, k_n = 1, n_samp = 2000)
 # }
 
-
-result_n50_repeat5 <- replicate_for_summary_once(dis = 4, k_n = 5, n_samp = 2000)
-for (i in 1:99) {
-  result_n50_repeat5 <- rbind(result_n50_repeat5, replicate_for_summary_once(dis = 4, k_n = 5, n_samp = 2000))
+time_begin <- Sys.time()
+result_n50_repeat5  <- foreach(i = 1:100, .combine='rbind', .packages = c("aghq", "TMB", "Matrix", "tidyverse")) %dopar% {
+  replicate_for_summary_once(dis = 20, k_n = 5, n_samp = 2000)
 }
+time_end <- Sys.time()
+time_end - time_begin
+save(file = "resultCase3.rda", result_n50_repeat5)
+
+
+
+parallel::stopCluster(cl)
+
+
+
+
+
