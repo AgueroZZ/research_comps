@@ -1,3 +1,10 @@
+library(tidyverse)
+library(aghq)
+library(TMB)
+library(Matrix)
+library(tidyverse)
+
+
 ### Real Data Analysis:
 cUrl = paste0("http://scrippsco2.ucsd.edu/assets/data/atmospheric/",
               "stations/flask_co2/daily/daily_flask_co2_mlo.csv")
@@ -20,7 +27,7 @@ plot(co2s[co2s$date > ISOdate(2015, 3, 1, tz = "UTC"),
 
 
 co2s$day = as.Date(co2s$date)
-toAdd = data.frame(day = seq(max(co2s$day) + 3, as.Date("2025/1/1"),
+toAdd = data.frame(day = seq(max(co2s$day) + 3, as.Date("2022/1/1"),
                              by = "10 days"), co2 = NA)
 co2ext = rbind(co2s[, colnames(toAdd)], toAdd)
 timeOrigin = as.Date("2000/1/1")
@@ -31,35 +38,34 @@ co2ext$cos12 = cos(2 * pi * co2ext$timeYears)
 co2ext$sin12 = sin(2 * pi * co2ext$timeYears)
 co2ext$cos6 = cos(2 * 2 * pi * co2ext$timeYears)
 co2ext$sin6 = sin(2 * 2 * pi * co2ext$timeYears)
-allDays = seq(from = min(co2ext$day), to = max(co2ext$day),
-              by = "1 day")
 co2ext$dayInt = as.integer(co2ext$day)
 
+### Reduce the size of the dataset:
+co2ext <- co2ext %>% filter(dayInt >= 16000)
+
+allDays = seq(from = min(co2ext$day), to = max(co2ext$day),
+              by = "1 day")
+nrow(co2ext)
+length(allDays)
 
 
 
-### Get the x_grid and z_grid:
-library(tidyverse)
-library(aghq)
-library(TMB)
-library(Matrix)
-library(tidyverse)
+
+
+
 
 
 
 
 observed_dataset <- co2ext %>% filter(!is.na(co2ext$co2)) %>% select(c("co2", "cos12", "sin12", "cos6", "sin6", "dayInt"))
-### Start with debugging a simpler example:
-# observed_dataset <- observed_dataset[1:1500, ]
 x_grid <- observed_dataset$dayInt
-z_grid <- co2ext$dayInt[is.na(co2ext$co2)]
 n <- length(x_grid)
 
 designX <- as(cbind(rep(1,n),as.matrix(observed_dataset[,-c(1,6)])), "dgTMatrix")
 designB <- as(as.matrix(Diagonal(n)), "dgTMatrix")
 
 
-compile("Real_Smoothing.cpp")
+# compile("Real_Smoothing.cpp")
 dyn.load(dynlib("Real_Smoothing"))
 
 
@@ -112,8 +118,16 @@ switch_matrix_once <- function(M, from, to){
   original_row <- L[to,]
   L[to,] <- L[from,]
   L[from,] <- original_row
-  L%*%M%*%t(L)
+  as(L,"dgCMatrix")%*% as(M, "dgCMatrix") %*% as(t(L), "dgCMatrix")
 }
+
+switch_matrix_once_new <- function(M, from, to){
+  v <- 1:nrow(M)
+  v[from] <- to
+  v[to] <- from
+  as(M[v,v], "dgCMatrix")
+}
+
 
 
 switch_matrix <- function(z, x, M){
@@ -121,13 +135,13 @@ switch_matrix <- function(z, x, M){
   n <- length(x)
   for (i in 1:length(z)) {
     z_location <- which(all_grid %in% z[i])
-    M <- switch_matrix_once(M,from = z_location, to = n + i)
+    M <- switch_matrix_once_new(M,from = z_location, to = n + i)
     all_grid[z_location] <- all_grid[n+i]
     all_grid[n + i] <- z[i]
   }
   for (j in 1:length(x)) {
     x_location <- which(all_grid %in% x[j])
-    M <- switch_matrix_once(M,from = x_location, to = j)
+    M <- switch_matrix_once_new(M,from = x_location, to = j)
     all_grid[x_location] <- all_grid[j]
     all_grid[j] <- x[j]
   }
@@ -144,15 +158,17 @@ Interpolation_vec_v1 <- function(t, x_grid, gx, GP, n_samples = 500){
   B <- compute_B(all_d, n)
   A <- compute_A(all_d, n)
   if(GP == "RW2"){
-    Q <- t(H) %*% solve(A) %*% H
+    Q <- as(t(H),"dgCMatrix") %*% as(solve(as(A,"dgCMatrix")),"dgCMatrix") %*% as(H,"dgCMatrix")
   }
   else{
     D <- H[-c(1,length(all_grid)),]
     R <- B[-c(1,length(all_grid)), -c(1,length(all_grid))]
     Q <- t(D) %*% solve(R) %*% D
+    Q <- as(t(D),"dgCMatrix") %*% as(solve(as(R,"dgCMatrix")),"dgCMatrix") %*% as(D,"dgCMatrix")
+    
   }
   
-  C <- solve(Q + Diagonal(n, x = 0.00001))
+  C <- solve(as(Q + Diagonal(n, x = 0.00001),"dgCMatrix"))
   C_trans <- switch_matrix(t,x_grid,C)
   Q_trans <- Matrix::forceSymmetric(solve(C_trans))
   QAA <- Q_trans[(length(x_grid) + 1):n, (length(x_grid) + 1):n]
@@ -260,7 +276,7 @@ U_mean <- mean_gw[1:ncol(Q1)]
 U_upper <- upper_gw[1:ncol(Q1)]
 U_lower <- lower_gw[1:ncol(Q1)]
 
-plot(x = co2ext$day[1:ncol(Q1)], y = U_mean, type = 'l', lty = 'solid', ylim = c(-60,60), ylab = "Random Effects", xlab = "time")
+plot(x = co2ext$day[1:ncol(Q1)], y = U_mean, type = 'l', lty = 'solid', ylim = c(-20,40), ylab = "Random Effects", xlab = "time")
 lines(U_upper~co2ext$day[1:ncol(Q1)], lty = 'dashed')
 lines(U_lower~co2ext$day[1:ncol(Q1)], lty = 'dashed')
 
@@ -305,11 +321,13 @@ lines(U_1st_lower~co2ext$day[2:ncol(Q1)], lty = 'dashed')
 #   lines(unlist(U_1st_Deriv[,i]) ~ co2ext$day[2:ncol(Q1)], col = rgb(240, 0, 0, max = 255, alpha = 40, names = "grey"))
 # }
 
-plot(x = co2ext$day[3:ncol(Q1)][-c(1:2000)], y = U_2nd_mean[-c(1:2000)], type = 'l', lty = 'solid', ylim = c(-4,4), ylab = "Random Effects 2nd Deriv", xlab = "time", xlim = )
+plot(x = co2ext$day[3:ncol(Q1)], y = U_2nd_mean, type = 'l', lty = 'solid', ylim = c(-4,4), ylab = "Random Effects 2nd Deriv", xlab = "time", xlim = )
 lines(U_2nd_upper~co2ext$day[3:ncol(Q1)], lty = 'dashed')
 lines(U_2nd_lower~co2ext$day[3:ncol(Q1)], lty = 'dashed')
 
 ## Above derivatives are not ideal, should be based on the Z_grid instead.
+
+
 
 ##################### Inference on high-resolution grid Z:
 z <- as.integer(allDays)
@@ -320,10 +338,97 @@ for (i in 1:length(gz_list)) {
   gz[,i] <- gz_list[[i]]
 }
 
+save(gz, file = "gz1days.rda")
+
+sample_path <- Matrix(0,nrow = (length(z_grid)+length(x_grid)), ncol = n_samp)
+for (i in 1:length(gz_list)) {
+  sample_path[,i] <- rbind(gz_list[[i]], matrix(U[,i],ncol = 1))
+}
+
+sample_path_rw2 <- as.tibble(as.matrix(sample_path))
+sample_path_rw2$locations <- c(z_grid,x_grid)
+sample_path_rw2$times <- c(allDays[which(z %in% z_grid)], co2ext$day[which(co2ext$dayInt %in% x_grid)])
+sample_path_rw2 <- arrange(sample_path_rw2, by = locations)
+
+
+mean_y_rw2 <- apply(sample_path_rw2[,-c(ncol(sample_path_rw2)-1,ncol(sample_path_rw2))], 1, mean)
+upper_y_rw2 <- apply(sample_path_rw2[,-c(ncol(sample_path_rw2)-1,ncol(sample_path_rw2))], 1, quantile, p = 0.975)
+lower_y_rw2 <- apply(sample_path_rw2[,-c(ncol(sample_path_rw2)-1,ncol(sample_path_rw2))], 1, quantile, p = 0.025)
 
 
 
 
+result_data <- data.frame(locations = sample_path_rw2$locations, mean_y = mean_y_rw2, upper_y = upper_y_rw2, lower_y = lower_y_rw2, times = sample_path_rw2$times)
+
+plot(result_data$mean_y[result_data$locations <= max(observed_dataset$dayInt)] ~ result_data$times[result_data$locations <= max(observed_dataset$dayInt)], type = 'l', xlab = "time", ylab = "Random Effects", col = "red", ylim = c(-20,40), xlim = range(result_data$times), lty = 1)
+lines(result_data$upper_y[result_data$locations <= max(observed_dataset$dayInt)] ~ result_data$locations[result_data$locations <= max(observed_dataset$dayInt)], lty = 2, col = 'orange')
+lines(result_data$lower_y[result_data$locations <= max(observed_dataset$dayInt)] ~ result_data$locations[result_data$locations <= max(observed_dataset$dayInt)], lty = 2, col = 'orange')
+lines(result_data$mean_y[result_data$locations >= max(observed_dataset$dayInt)] ~ result_data$times[result_data$locations >= max(observed_dataset$dayInt)], col = "blue")
+
+# abline(v = result_data$times[result_data$locations == max(observed_dataset$dayInt)])
+
+for (i in sample.int(n_samp,3)) {
+  lines(unlist(sample_path_rw2[,i]) ~ sample_path_rw2$locations, col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
+}
+
+
+### Inference for higher order derivatives:
+
+sample_path_rw2 <- sample_path_rw2[,-c(ncol(sample_path_rw2)-1,ncol(sample_path_rw2))]
+
+z_1st_Deriv <- apply(sample_path_rw2, 2, compute_deriv, order = 1)
+z_2nd_Deriv <- apply(sample_path_rw2, 2, compute_deriv, order = 2)
+
+z_1st_mean <- apply(z_1st_Deriv, 1, mean)
+z_1st_upper <- apply(z_1st_Deriv, 1, quantile, p = 0.975)
+z_1st_lower <- apply(z_1st_Deriv, 1, quantile, p = 0.025)
+
+z_2nd_mean <- apply(z_2nd_Deriv, 1, mean)
+z_2nd_upper <- apply(z_2nd_Deriv, 1, quantile, p = 0.975)
+z_2nd_lower <- apply(z_2nd_Deriv, 1, quantile, p = 0.025)
+
+plot(x = result_data$times[2:nrow(sample_path_rw2)], y = z_1st_mean, type = 'l', lty = 'solid', ylim = c(-5,5), ylab = "Random Effects 1st Deriv", xlab = "time", col = 'red')
+lines(z_1st_upper~result_data$times[2:nrow(sample_path_rw2)], lty = 'dashed', col = 'orange')
+lines(z_1st_lower~result_data$times[2:nrow(sample_path_rw2)], lty = 'dashed', col = 'orange')
+
+### Sample path:
+# plot(unlist(z_1st_Deriv[,1]) ~ result_data$times[2:nrow(result_data)], col = rgb(0, 0, 255, max = 255, alpha = 40, names = "grey"), lty = 'solid', type = 'l', ylim = c(-6,6))
+for (i in sample.int(n_samp,3)) {
+  lines(unlist(z_1st_Deriv[,i]) ~ result_data$times[2:nrow(result_data)], col = rgb(0, 0, 255, max = 255, alpha = 40, names = "grey"))
+}
+
+plot(x = result_data$times[3:nrow(sample_path_rw2)], y = z_2nd_mean, type = 'l', lty = 'solid', ylim = c(-4,4), ylab = "Random Effects 2nd Deriv", xlab = "time", col = 'red')
+lines(z_2nd_upper~result_data$times[3:nrow(sample_path_rw2)], lty = 'dashed', col = 'orange')
+lines(z_2nd_lower~result_data$times[3:nrow(sample_path_rw2)], lty = 'dashed', col = 'orange')
+for (i in sample.int(n_samp,3)) {
+  lines(unlist(z_2nd_Deriv[,i]) ~ result_data$times[3:nrow(result_data)], col = rgb(0, 0, 255, max = 255, alpha = 40, names = "grey"))
+}
+
+##### Overall effect:
+compute_design <- function(vec){
+  vec <- round(as.numeric(vec - timeOrigin)/365.25,2)
+  cbind(rep(1,length(vec)), cos(2*pi*vec), sin(2*pi*vec), cos(4*pi*vec), sin(4*pi*vec))
+}
+designZ <- compute_design(result_data$times)
+  
+f_par <-  designZ %*% c(gw$samps[(ncol(Q1)+1):(ncol(Q1)+5),1])
+for (i in 2:ncol(gw$samps)) {
+  f_par <- cbind(f_par, designZ %*% c(gw$samps[(ncol(Q1)+1):(ncol(Q1)+5),i]))
+}
+mean_f_par <- apply(f_par,1, mean)
+
+plot(x = allDays, y = mean_f_par, type = 'l', lty = 'solid', ylab = "Parametric Effects", xlab = "time")
+
+f_overall <- f_par + sample_path_rw2[,-c(ncol(sample_path_rw2)-1,ncol(sample_path_rw2))]
+
+mean_f_overall <- apply(f_overall,1, mean)
+upper_f_overall <- apply(f_overall,1, quantile, p = 0.975)
+lower_f_overall <- apply(f_overall,1, quantile, p = 0.025)
+
+plot(x = allDays[result_data$locations <= max(observed_dataset$dayInt)], y = mean_f_overall[result_data$locations <= max(observed_dataset$dayInt)], type = 'l', lty = 'solid', ylab = "Overall Effects", xlab = "time", ylim = c(390,420), xlim = range(allDays), col = 'red')
+lines(upper_f_overall[result_data$locations <= max(observed_dataset$dayInt)]~ allDays[result_data$locations <= max(observed_dataset$dayInt)], lty = 'dashed', col = 'orange')
+lines(lower_f_overall[result_data$locations <= max(observed_dataset$dayInt)]~ allDays[result_data$locations <= max(observed_dataset$dayInt)], lty = 'dashed', col = 'orange')
+lines(mean_f_overall[result_data$locations >= max(observed_dataset$dayInt)] ~ allDays[result_data$locations >= max(observed_dataset$dayInt)], col = "blue")
 
 
 
