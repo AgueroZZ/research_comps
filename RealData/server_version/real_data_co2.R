@@ -1,8 +1,8 @@
-libplace = "~/lib"
 library(tidyverse)
-library(aghq, lib.loc = libplace)
-library(TMB, lib.loc = libplace)
+library(aghq)
+library(TMB)
 library(Matrix)
+library(tidyverse)
 
 
 ### Real Data Analysis:
@@ -40,12 +40,11 @@ co2ext$cos6 = cos(2 * 2 * pi * co2ext$timeYears)
 co2ext$sin6 = sin(2 * 2 * pi * co2ext$timeYears)
 co2ext$dayInt = as.integer(co2ext$day)
 
-# ### Reduce the size of the dataset:
-# co2ext <- co2ext %>% filter(dayInt >= 16000)
-### Now use the full data, but look at a weekly observed grid.
+### Reduce the size of the dataset:
+co2ext <- co2ext %>% filter(dayInt >= 16000)
 
 allDays = seq(from = min(co2ext$day), to = max(co2ext$day),
-              by = "7 day")
+              by = "1 day")
 nrow(co2ext)
 length(allDays)
 
@@ -66,7 +65,7 @@ designX <- as(cbind(rep(1,n),as.matrix(observed_dataset[,-c(1,6)])), "dgTMatrix"
 designB <- as(as.matrix(Diagonal(n)), "dgTMatrix")
 
 
-compile("Real_Smoothing.cpp")
+# compile("Real_Smoothing.cpp")
 dyn.load(dynlib("Real_Smoothing"))
 
 
@@ -248,15 +247,12 @@ ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
 
 # AGHQ
 set.seed(123)
-start_time <- Sys.time()
 quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
-Sys.time() - start_time
-
 gw <- sample_marginal(quad, n_samp)
 mean_gw  <- apply(gw$samps,1, mean)
 upper_gw  <- apply(gw$samps,1, quantile, p = 0.975)
 lower_gw  <- apply(gw$samps,1, quantile, p = 0.025)
-save(quad, "quadFullData.rda")
+
 
 ### Check hyperparameter:
 # Plot of theta1 posterior
@@ -334,7 +330,6 @@ lines(U_2nd_lower~co2ext$day[3:ncol(Q1)], lty = 'dashed')
 
 
 ##################### Inference on high-resolution grid Z:
-start_time <- Sys.time()
 z <- as.integer(allDays)
 z_grid <- z[!z %in% x_grid]
 gz_list <- Interpolation_vec_v1(t = z_grid, x_grid, U, "RW2")
@@ -342,16 +337,8 @@ gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
 for (i in 1:length(gz_list)) {
   gz[,i] <- gz_list[[i]]
 }
-Sys.time() - start_time
-save(gz, file = "gz7days.rda")
 
-
-############### Stop here first, the rest analysis can also be just carried out in z, as now z can be interpreted
-############### As a better (more regular) spaced grid, with equal spacing becomes a week.
-
-
-
-
+save(gz, file = "gz1days.rda")
 
 sample_path <- Matrix(0,nrow = (length(z_grid)+length(x_grid)), ncol = n_samp)
 for (i in 1:length(gz_list)) {
