@@ -1,8 +1,11 @@
-library(tidyverse)
-library(aghq)
-library(TMB)
+libplace = "~/lib"
+
+
+library(tidyverse, lib = libplace)
+library(aghq, lib = libplace)
+library(TMB, lib = libplace)
 library(Matrix)
-library(tidyverse)
+library(tidyverse, libplace)
 
 
 ### Real Data Analysis:
