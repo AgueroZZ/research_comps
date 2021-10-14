@@ -30,7 +30,7 @@ plot(co2s[co2s$date > ISOdate(2015, 3, 1, tz = "UTC"),
 
 co2s$day = as.Date(co2s$date)
 toAdd = data.frame(day = seq(max(co2s$day) + 3, as.Date("2022/1/1"),
-                             by = "10 days"), co2 = NA)
+                             by = "7 days"), co2 = NA)
 co2ext = rbind(co2s[, colnames(toAdd)], toAdd)
 timeOrigin = as.Date("2000/1/1")
 
@@ -42,11 +42,11 @@ co2ext$cos6 = cos(2 * 2 * pi * co2ext$timeYears)
 co2ext$sin6 = sin(2 * 2 * pi * co2ext$timeYears)
 co2ext$dayInt = as.integer(co2ext$day)
 
-### Reduce the size of the dataset:
-co2ext <- co2ext %>% filter(dayInt >= 16000)
+# ### Reduce the size of the dataset:
+# co2ext <- co2ext %>% filter(dayInt >= 16000)
 
 allDays = seq(from = min(co2ext$day), to = max(co2ext$day),
-              by = "1 day")
+              by = "7 day")
 nrow(co2ext)
 length(allDays)
 
@@ -340,7 +340,7 @@ for (i in 1:length(gz_list)) {
   gz[,i] <- gz_list[[i]]
 }
 
-save(gz, file = "gz1days.rda")
+save(gz, file = "gz7days.rda")
 
 sample_path <- Matrix(0,nrow = (length(z_grid)+length(x_grid)), ncol = n_samp)
 for (i in 1:length(gz_list)) {
