@@ -5,6 +5,7 @@ library(TMB, lib = libplace)
 library(Matrix)
 library(xml2,lib = "~/lib")
 library(tidyverse)
+library(mvQuad, lib = "~/lib")
 
 
 ### Real Data Analysis:
@@ -44,6 +45,7 @@ co2ext$dayInt = as.integer(co2ext$day)
 
 # ### Reduce the size of the dataset:
 # co2ext <- co2ext %>% filter(dayInt >= 16000)
+### Now use the full data, but look at a weekly observed grid.
 
 allDays = seq(from = min(co2ext$day), to = max(co2ext$day),
               by = "7 day")
@@ -81,7 +83,7 @@ dyn.load(dynlib("Real_Smoothing"))
 
 
 ############ Implement:
-n_samp = 1000
+n_samp = 3000
 compute_H_rue <- function(d,n){
   H <- matrix(data = 0, nrow = n, ncol = n)
   for (i in 2:(nrow(H)-1)) {
@@ -170,7 +172,7 @@ Interpolation_vec_v1 <- function(t, x_grid, gx, GP, n_samples = 500){
     
   }
   
-  C <- solve(as(Q + Diagonal(n, x = 0.00001),"dgCMatrix"))
+  C <- solve(as(Q + Diagonal(n, x = .Machine$double.eps),"dgCMatrix"))
   C_trans <- switch_matrix(t,x_grid,C)
   Q_trans <- Matrix::forceSymmetric(solve(C_trans))
   QAA <- Q_trans[(length(x_grid) + 1):n, (length(x_grid) + 1):n]
@@ -209,7 +211,11 @@ A <- compute_A(d, n = length(observed_dataset$dayInt))
 
 ###### RW2:
 Q1 <- t(H) %*% solve(A) %*% H
-Q1 <- as(Q1 + Diagonal(n, x = 0.00001), "dgTMatrix")
+Q1 <- as(Q1 + Diagonal(n, x = .Machine$double.eps), "dgTMatrix")
+
+
+# Q1 <- as(Q1, "dgTMatrix")
+# all_values <- eigen(Q1, only.values = TRUE)$values
 
 
 tmbdat <- list(
@@ -219,7 +225,8 @@ tmbdat <- list(
   # Penalty(Precision) matrix
   P = Q1,
   # Log determinant of penalty matrix (without the sigma part)
-  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # logPdet = as.numeric(sum(log(sort(all_values)[-(1:2)]))),
+  logPdet = as.numeric(determinant(Q1,logarithm = T)$modulus),
   # Response
   y = observed_dataset$co2,
   # PC Prior params
@@ -249,12 +256,14 @@ ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
 
 # AGHQ
 set.seed(123)
-quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+start_time <- Sys.time()
+quad <- aghq::marginal_laplace_tmb(ff,5,c(0,0))
+Sys.time() - start_time
+
 gw <- sample_marginal(quad, n_samp)
 mean_gw  <- apply(gw$samps,1, mean)
 upper_gw  <- apply(gw$samps,1, quantile, p = 0.975)
 lower_gw  <- apply(gw$samps,1, quantile, p = 0.025)
-
 
 ### Check hyperparameter:
 # Plot of theta1 posterior
@@ -278,7 +287,7 @@ U_mean <- mean_gw[1:ncol(Q1)]
 U_upper <- upper_gw[1:ncol(Q1)]
 U_lower <- lower_gw[1:ncol(Q1)]
 
-plot(x = co2ext$day[1:ncol(Q1)], y = U_mean, type = 'l', lty = 'solid', ylim = c(-20,40), ylab = "Random Effects", xlab = "time")
+plot(x = co2ext$day[1:ncol(Q1)], y = U_mean, type = 'l', lty = 'solid', ylab = "Random Effects", xlab = "time")
 lines(U_upper~co2ext$day[1:ncol(Q1)], lty = 'dashed')
 lines(U_lower~co2ext$day[1:ncol(Q1)], lty = 'dashed')
 
@@ -332,6 +341,7 @@ lines(U_2nd_lower~co2ext$day[3:ncol(Q1)], lty = 'dashed')
 
 
 ##################### Inference on high-resolution grid Z:
+start_time <- Sys.time()
 z <- as.integer(allDays)
 z_grid <- z[!z %in% x_grid]
 gz_list <- Interpolation_vec_v1(t = z_grid, x_grid, U, "RW2")
@@ -339,8 +349,16 @@ gz <- Matrix(0,nrow = length(z_grid), ncol = n_samp)
 for (i in 1:length(gz_list)) {
   gz[,i] <- gz_list[[i]]
 }
-
+Sys.time() - start_time
 save(gz, file = "gz7days.rda")
+
+
+############### Stop here first, the rest analysis can also be just carried out in z, as now z can be interpreted
+############### As a better (more regular) spaced grid, with equal spacing becomes a week.
+
+
+
+
 
 sample_path <- Matrix(0,nrow = (length(z_grid)+length(x_grid)), ncol = n_samp)
 for (i in 1:length(gz_list)) {
@@ -412,7 +430,7 @@ compute_design <- function(vec){
   cbind(rep(1,length(vec)), cos(2*pi*vec), sin(2*pi*vec), cos(4*pi*vec), sin(4*pi*vec))
 }
 designZ <- compute_design(result_data$times)
-  
+
 f_par <-  designZ %*% c(gw$samps[(ncol(Q1)+1):(ncol(Q1)+5),1])
 for (i in 2:ncol(gw$samps)) {
   f_par <- cbind(f_par, designZ %*% c(gw$samps[(ncol(Q1)+1):(ncol(Q1)+5),i]))

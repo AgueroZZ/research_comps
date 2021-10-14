@@ -1,7 +1,7 @@
 libplace = "~/lib"
 library(tidyverse)
-library(aghq, lib.loc = libplace)
-library(TMB, lib.loc = libplace)
+library(aghq)
+library(TMB)
 library(Matrix)
 
 
@@ -28,7 +28,7 @@ plot(co2s[co2s$date > ISOdate(2015, 3, 1, tz = "UTC"),
 
 co2s$day = as.Date(co2s$date)
 toAdd = data.frame(day = seq(max(co2s$day) + 3, as.Date("2022/1/1"),
-                             by = "10 days"), co2 = NA)
+                             by = "7 days"), co2 = NA)
 co2ext = rbind(co2s[, colnames(toAdd)], toAdd)
 timeOrigin = as.Date("2000/1/1")
 
@@ -80,7 +80,7 @@ dyn.load(dynlib("Real_Smoothing"))
 
 
 ############ Implement:
-n_samp = 1000
+n_samp = 3000
 compute_H_rue <- function(d,n){
   H <- matrix(data = 0, nrow = n, ncol = n)
   for (i in 2:(nrow(H)-1)) {
@@ -169,7 +169,7 @@ Interpolation_vec_v1 <- function(t, x_grid, gx, GP, n_samples = 500){
     
   }
   
-  C <- solve(as(Q + Diagonal(n, x = 0.00001),"dgCMatrix"))
+  C <- solve(as(Q + Diagonal(n, x = .Machine$double.eps),"dgCMatrix"))
   C_trans <- switch_matrix(t,x_grid,C)
   Q_trans <- Matrix::forceSymmetric(solve(C_trans))
   QAA <- Q_trans[(length(x_grid) + 1):n, (length(x_grid) + 1):n]
@@ -208,7 +208,11 @@ A <- compute_A(d, n = length(observed_dataset$dayInt))
 
 ###### RW2:
 Q1 <- t(H) %*% solve(A) %*% H
-Q1 <- as(Q1 + Diagonal(n, x = 0.00001), "dgTMatrix")
+Q1 <- as(Q1 + Diagonal(n, x = .Machine$double.eps), "dgTMatrix")
+
+
+# Q1 <- as(Q1, "dgTMatrix")
+# all_values <- eigen(Q1, only.values = TRUE)$values
 
 
 tmbdat <- list(
@@ -218,7 +222,8 @@ tmbdat <- list(
   # Penalty(Precision) matrix
   P = Q1,
   # Log determinant of penalty matrix (without the sigma part)
-  logPdet = as.numeric(determinant(Q1,logarithm = TRUE)$modulus),
+  # logPdet = as.numeric(sum(log(sort(all_values)[-(1:2)]))),
+  logPdet = as.numeric(determinant(Q1,logarithm = T)$modulus),
   # Response
   y = observed_dataset$co2,
   # PC Prior params
@@ -249,14 +254,13 @@ ff$he <- function(w) numDeriv::jacobian(ff$gr,w)
 # AGHQ
 set.seed(123)
 start_time <- Sys.time()
-quad <- aghq::marginal_laplace_tmb(ff,7,c(0,0))
+quad <- aghq::marginal_laplace_tmb(ff,5,c(0,0))
 Sys.time() - start_time
 
 gw <- sample_marginal(quad, n_samp)
 mean_gw  <- apply(gw$samps,1, mean)
 upper_gw  <- apply(gw$samps,1, quantile, p = 0.975)
 lower_gw  <- apply(gw$samps,1, quantile, p = 0.025)
-save(quad, "quadFullData.rda")
 
 ### Check hyperparameter:
 # Plot of theta1 posterior
@@ -280,7 +284,7 @@ U_mean <- mean_gw[1:ncol(Q1)]
 U_upper <- upper_gw[1:ncol(Q1)]
 U_lower <- lower_gw[1:ncol(Q1)]
 
-plot(x = co2ext$day[1:ncol(Q1)], y = U_mean, type = 'l', lty = 'solid', ylim = c(-20,40), ylab = "Random Effects", xlab = "time")
+plot(x = co2ext$day[1:ncol(Q1)], y = U_mean, type = 'l', lty = 'solid', ylab = "Random Effects", xlab = "time")
 lines(U_upper~co2ext$day[1:ncol(Q1)], lty = 'dashed')
 lines(U_lower~co2ext$day[1:ncol(Q1)], lty = 'dashed')
 
