@@ -1,11 +1,10 @@
 libplace = "~/lib"
 
-
-library(tidyverse, lib = libplace)
 library(aghq, lib = libplace)
 library(TMB, lib = libplace)
 library(Matrix)
-library(tidyverse, libplace)
+library(xml2,lib = "~/lib")
+library(tidyverse)
 
 
 ### Real Data Analysis:
@@ -68,7 +67,7 @@ designX <- as(cbind(rep(1,n),as.matrix(observed_dataset[,-c(1,6)])), "dgTMatrix"
 designB <- as(as.matrix(Diagonal(n)), "dgTMatrix")
 
 
-# compile("Real_Smoothing.cpp")
+compile("Real_Smoothing.cpp")
 dyn.load(dynlib("Real_Smoothing"))
 
 
