@@ -359,7 +359,7 @@ For the inference of higher order derivatives, the two methods have more signifi
 
 Again, we confirm our observation above by replicating the same simulation independently for 100 times. The aggregated distributions of rIAE, MCI and CR for $g$, $g'$ and $g''$ using each method are shown in \ref{fig:sim2-100replic}. As displayed in the figures, the MCI for higher order derivative is significantly smaller using the ARIMA method, and this difference gets more significant as the observed locations get dense in the region.
 
-In conclusion, if the main inferential interest is for $g$ instead of its higher order derivatives or such related functional, the two smoothing methods give similar inferential results. Hence the extended RW2 method is more favourable due to the much better computational efficiency provided by its diagonal approximation to the precision matrix. On the other hand, if the quantities related to its higher order derivatives are also of interest, then using RW2 may yield much larger inferential uncertainty relative to the exact ARIMA method, depending on the density of the observed locations in the dataset. 
+In conclusion, if the main inferential interest is for $g$ instead of its higher order derivatives or such related functional, the two smoothing methods give similar inferential results. Hence the extended RW2 method is more favorable due to the much better computational efficiency provided by its diagonal approximation to the precision matrix. On the other hand, if the quantities related to its higher order derivatives are also of interest, then using RW2 may yield much larger inferential uncertainty relative to the exact ARIMA method, depending on the density of the observed locations in the dataset. 
 
 
 
@@ -546,17 +546,17 @@ There are still some questions left to the future's work. In section \ref{practi
 
 \begin{figure}[p]
     \centering
-     \subfigure[Posterior for $f'_{np}$ using ARIMA]{
-      \includegraphics[width=0.39\textwidth]{2010_ARIMA_1st.pdf}
-    }
          \subfigure[Posterior for $f'_{np}$ using RW2]{
       \includegraphics[width=0.39\textwidth]{2010_RW2_1st.pdf}
     }
-         \subfigure[Posterior for $f''_{np}$ using ARIMA]{
-      \includegraphics[width=0.39\textwidth]{2010_ARIMA_2nd.pdf}
+         \subfigure[Posterior for $f'_{np}$ using ARIMA]{
+      \includegraphics[width=0.39\textwidth]{2010_ARIMA_1st.pdf}
     }
          \subfigure[Posterior for $f''_{np}$ using RW2]{
       \includegraphics[width=0.39\textwidth]{2010_RW2_2nd.pdf}
+    }
+             \subfigure[Posterior for $f''_{np}$ using ARIMA]{
+      \includegraphics[width=0.39\textwidth]{2010_ARIMA_2nd.pdf}
     }
      \caption{Inferences obtained for the 1st/2nd derivatives of $f_{np}$ using each method. Orange dashed lines represent the 95 percent credible intervals. Red lines represent sample paths from the posterior distributions. Black solid lines are the posterior means.}
     \label{fig:realdata_2010}
