@@ -8,6 +8,7 @@ library(parallel)
 
 cl <- parallel::makeCluster(8)
 doParallel::registerDoParallel(cl)
+n_samp = 2000
 
 
 compute_H_rue <- function(d,n){
@@ -52,6 +53,7 @@ construct_A <- function(all_grid, x_indx){
 
 
 compile(file = "02_RW2Comparison.cpp")
+dyn.load(dynlib("02_RW2Comparison"))
 
 
 
@@ -364,66 +366,131 @@ load(file = "resultCase1_updated.rda")
 rIAE_data <- result_n100_repeat5 %>% select(c("rIAE_RW2", "rIAE_ARIMA")) %>% gather(type, rIAE, rIAE_RW2:rIAE_ARIMA, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for the function")
 
+dev.copy(pdf,'sim1-g-rIAE.pdf')
+dev.off()
+
+
 MCI_data <- result_n100_repeat5 %>% select(c("MCI_RW2", "MCI_ARIMA")) %>% gather(type, MCI, MCI_RW2:MCI_ARIMA, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for the function")
 
+dev.copy(pdf,'sim1-g-MCI.pdf')
+dev.off()
+
+
+
 CR_data <- result_n100_repeat5 %>% select(c("CR_RW2", "CR_ARIMA")) %>% gather(type, CR, CR_RW2:CR_ARIMA, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for the function")
+
+dev.copy(pdf,'sim1-g-CR.pdf')
+dev.off()
 
 
 rIAE_data <- result_n100_repeat5 %>% select(c("rIAE_RW2_1st", "rIAE_ARIMA_1st")) %>% gather(type, rIAE, rIAE_RW2_1st:rIAE_ARIMA_1st, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for 1st derivative")
 
+dev.copy(pdf,'sim1-g1st-rIAE.pdf')
+dev.off()
+
 
 MCI_data <- result_n100_repeat5 %>% select(c("MCI_RW2_1st", "MCI_ARIMA_1st")) %>% gather(type, MCI, MCI_RW2_1st:MCI_ARIMA_1st, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for 1st derivative")
 
+dev.copy(pdf,'sim1-g1st-MCI.pdf')
+dev.off()
+
+
 CR_data <- result_n100_repeat5 %>% select(c("CR_RW2_1st", "CR_ARIMA_1st")) %>% gather(type, CR, CR_RW2_1st:CR_ARIMA_1st, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for 1st derivative")
+
+dev.copy(pdf,'sim1-g1st-CR.pdf')
+dev.off()
 
 
 rIAE_data <- result_n100_repeat5 %>% select(c("rIAE_RW2_2nd", "rIAE_ARIMA_2nd")) %>% gather(type, rIAE, rIAE_RW2_2nd:rIAE_ARIMA_2nd, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for 2nd derivative")
 
+dev.copy(pdf,'sim1-g2nd-rIAE.pdf')
+dev.off()
+
+
 MCI_data <- result_n100_repeat5 %>% select(c("MCI_RW2_2nd", "MCI_ARIMA_2nd")) %>% gather(type, MCI, MCI_RW2_2nd:MCI_ARIMA_2nd, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for 2nd derivative")
+
+dev.copy(pdf,'sim1-g2nd-MCI.pdf')
+dev.off()
 
 CR_data <- result_n100_repeat5 %>% select(c("CR_RW2_2nd", "CR_ARIMA_2nd")) %>% gather(type, CR, CR_RW2_2nd:CR_ARIMA_2nd, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for 2nd derivative")
 
-
+dev.copy(pdf,'sim1-g2nd-CR.pdf')
+dev.off()
 
 ### Case 2:
-load(file = "resultCase1_updated.rda")
+load(file = "resultCase2_updated.rda")
 rIAE_data <- result_n100_repeated_2times %>% select(c("rIAE_RW2", "rIAE_ARIMA")) %>% gather(type, rIAE, rIAE_RW2:rIAE_ARIMA, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for the function")
 
+dev.copy(pdf,'sim2-g-rIAE.pdf')
+dev.off()
+
+
+
 MCI_data <- result_n100_repeated_2times %>% select(c("MCI_RW2", "MCI_ARIMA")) %>% gather(type, MCI, MCI_RW2:MCI_ARIMA, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for the function")
+
+dev.copy(pdf,'sim2-g-MCI.pdf')
+dev.off()
+
+
 
 CR_data <- result_n100_repeated_2times %>% select(c("CR_RW2", "CR_ARIMA")) %>% gather(type, CR, CR_RW2:CR_ARIMA, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for the function")
 
 
+dev.copy(pdf,'sim2-g-CR.pdf')
+dev.off()
+
+
 rIAE_data <- result_n100_repeated_2times %>% select(c("rIAE_RW2_1st", "rIAE_ARIMA_1st")) %>% gather(type, rIAE, rIAE_RW2_1st:rIAE_ARIMA_1st, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for 1st derivative")
+
+dev.copy(pdf,'sim2-g1st-rIAE.pdf')
+dev.off()
 
 
 MCI_data <- result_n100_repeated_2times %>% select(c("MCI_RW2_1st", "MCI_ARIMA_1st")) %>% gather(type, MCI, MCI_RW2_1st:MCI_ARIMA_1st, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for 1st derivative")
 
+dev.copy(pdf,'sim2-g1st-MCI.pdf')
+dev.off()
+
+
 CR_data <- result_n100_repeated_2times %>% select(c("CR_RW2_1st", "CR_ARIMA_1st")) %>% gather(type, CR, CR_RW2_1st:CR_ARIMA_1st, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for 1st derivative")
+
+dev.copy(pdf,'sim2-g1st-CR.pdf')
+dev.off()
 
 
 rIAE_data <- result_n100_repeated_2times %>% select(c("rIAE_RW2_2nd", "rIAE_ARIMA_2nd")) %>% gather(type, rIAE, rIAE_RW2_2nd:rIAE_ARIMA_2nd, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for 2nd derivative")
 
+dev.copy(pdf,'sim2-g2nd-rIAE.pdf')
+dev.off()
+
 MCI_data <- result_n100_repeated_2times %>% select(c("MCI_RW2_2nd", "MCI_ARIMA_2nd")) %>% gather(type, MCI, MCI_RW2_2nd:MCI_ARIMA_2nd, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for 2nd derivative")
 
+
+dev.copy(pdf,'sim2-g2nd-MCI.pdf')
+dev.off()
+
 CR_data <- result_n100_repeated_2times %>% select(c("CR_RW2_2nd", "CR_ARIMA_2nd")) %>% gather(type, CR, CR_RW2_2nd:CR_ARIMA_2nd, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for 2nd derivative")
+
+
+dev.copy(pdf,'sim2-g2nd-CR.pdf')
+dev.off()
 
 
 
@@ -437,34 +504,62 @@ load(file = "result_VeryDense.rda")
 rIAE_data <- result_n100_unique %>% select(c("rIAE_RW2", "rIAE_ARIMA")) %>% gather(type, rIAE, rIAE_RW2:rIAE_ARIMA, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for the function")
 
+dev.copy(pdf,'sim3-g-rIAE.pdf')
+dev.off()
+
+
 MCI_data <- result_n100_unique %>% select(c("MCI_RW2", "MCI_ARIMA")) %>% gather(type, MCI, MCI_RW2:MCI_ARIMA, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for the function")
+
+dev.copy(pdf,'sim3-g-MCI.pdf')
+dev.off()
+
 
 CR_data <- result_n100_unique %>% select(c("CR_RW2", "CR_ARIMA")) %>% gather(type, CR, CR_RW2:CR_ARIMA, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for the function")
 
 
+dev.copy(pdf,'sim3-g-CR.pdf')
+dev.off()
+
 rIAE_data <- result_n100_unique %>% select(c("rIAE_RW2_1st", "rIAE_ARIMA_1st")) %>% gather(type, rIAE, rIAE_RW2_1st:rIAE_ARIMA_1st, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for 1st derivative")
+
+dev.copy(pdf,'sim3-g1st-rIAE.pdf')
+dev.off()
 
 
 MCI_data <- result_n100_unique %>% select(c("MCI_RW2_1st", "MCI_ARIMA_1st")) %>% gather(type, MCI, MCI_RW2_1st:MCI_ARIMA_1st, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for 1st derivative")
 
+dev.copy(pdf,'sim3-g1st-MCI.pdf')
+dev.off()
+
 CR_data <- result_n100_unique %>% select(c("CR_RW2_1st", "CR_ARIMA_1st")) %>% gather(type, CR, CR_RW2_1st:CR_ARIMA_1st, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for 1st derivative")
 
+dev.copy(pdf,'sim3-g1st-CR.pdf')
+dev.off()
 
 rIAE_data <- result_n100_unique %>% select(c("rIAE_RW2_2nd", "rIAE_ARIMA_2nd")) %>% gather(type, rIAE, rIAE_RW2_2nd:rIAE_ARIMA_2nd, factor_key=TRUE)
 rIAE_data %>% ggplot() + geom_boxplot(aes(y = rIAE, fill = type)) + theme_classic() + ggtitle("rIAE for 2nd derivative")
 
+dev.copy(pdf,'sim3-g2nd-rIAE.pdf')
+dev.off()
+
+
 MCI_data <- result_n100_unique %>% select(c("MCI_RW2_2nd", "MCI_ARIMA_2nd")) %>% gather(type, MCI, MCI_RW2_2nd:MCI_ARIMA_2nd, factor_key=TRUE)
 MCI_data %>% ggplot() + geom_boxplot(aes(y = MCI, fill = type)) + theme_classic() + ggtitle("MCI for 2nd derivative")
+
+
+dev.copy(pdf,'sim3-g2nd-MCI.pdf')
+dev.off()
 
 CR_data <- result_n100_unique %>% select(c("CR_RW2_2nd", "CR_ARIMA_2nd")) %>% gather(type, CR, CR_RW2_2nd:CR_ARIMA_2nd, factor_key=TRUE)
 CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() + ggtitle("CR for 2nd derivative")
 
-
+dev.copy(pdf,'sim3-g2nd-CR.pdf')
+dev.off()
 
 
 
@@ -529,6 +624,7 @@ CR_data %>% ggplot() + geom_boxplot(aes(y = CR, fill = type)) + theme_classic() 
 #############################################################
 #############################################################
 ### Case 1: sparse spacing
+set.seed(123)
 dis <- 20
 z <- round(seq(0.5,100, 0.5),2)
 x <- seq(1, 100, dis*0.5)
@@ -617,6 +713,8 @@ for (i in sample.int(n_samp,30)) {
 }
 title(main = "RW2 for sparse covariate: g(.)")
 
+dev.copy(pdf,'sim1-g-RW2.pdf')
+dev.off()
 
 tmbdat <- list(
   # Design matrix
@@ -670,7 +768,8 @@ for (i in sample.int(n_samp,30)) {
 }
 title(main = "ARIMA for sparse covariate: g(.)")
 
-
+dev.copy(pdf,'sim1-g-ARIMA.pdf')
+dev.off()
 
 
 
@@ -721,7 +820,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_rw2_1stDeriv[,i])/h ~ z[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
-
+dev.copy(pdf,'sim1-g1st-RW2.pdf')
+dev.off()
 
 
 
@@ -736,6 +836,9 @@ lines(sample_path_arima_1stDeriv_lower/h ~ z[-1], col = 'orange', lty = 2)
 for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_arima_1stDeriv[,i])/h ~ z[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
+
+dev.copy(pdf,'sim1-g1st-ARIMA.pdf')
+dev.off()
 
 
 
@@ -754,6 +857,10 @@ for (i in sample.int(n_samp,5)) {
 }
 
 
+dev.copy(pdf,'sim1-g2nd-RW2.pdf')
+dev.off()
+
+
 
 plot(diff(compute_g(z), differences = 2)/(h^2) ~ z[-c(1,2)], type = 'l', col = 'black', 
      xlab = "region of interest", 
@@ -766,7 +873,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_arima_2ndDeriv[,i])/(h^2) ~ z[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
-
+dev.copy(pdf,'sim1-g2nd-ARIMA.pdf')
+dev.off()
 
 
 
@@ -775,6 +883,8 @@ for (i in sample.int(n_samp,5)) {
 #############################################################
 #############################################################
 ### Case 2: medium spacing
+set.seed(123)
+
 dis <- 4
 z <- round(seq(0.5,100, 0.5),2)
 x <- seq(1, 100, dis*0.5)
@@ -864,6 +974,13 @@ for (i in sample.int(n_samp,30)) {
 title(main = "RW2 for regular covariate: g(.)")
 
 
+dev.copy(pdf,'sim2-g-RW2.pdf')
+dev.off()
+
+
+
+
+
 tmbdat <- list(
   # Design matrix
   X = X,
@@ -916,6 +1033,8 @@ for (i in sample.int(n_samp,30)) {
 }
 title(main = "ARIMA for regular covariate: g(.)")
 
+dev.copy(pdf,'sim2-g-ARIMA.pdf')
+dev.off()
 
 
 
@@ -967,6 +1086,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_rw2_1stDeriv[,i])/h ~ z[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim2-g1st-RW2.pdf')
+dev.off()
 
 
 
@@ -983,6 +1104,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_arima_1stDeriv[,i])/h ~ z[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim2-g1st-ARIMA.pdf')
+dev.off()
 
 
 
@@ -999,6 +1122,9 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_rw2_2ndDeriv[,i])/(h^2) ~ z[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim2-g2nd-RW2.pdf')
+dev.off()
+
 
 
 plot(diff(compute_g(z), differences = 2)/(h^2) ~ z[-c(1,2)], type = 'l', col = 'black', 
@@ -1012,26 +1138,15 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_arima_2ndDeriv[,i])/(h^2) ~ z[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+dev.copy(pdf,'sim2-g2nd-ARIMA.pdf')
+dev.off()
 
 
 #############################################################
 #############################################################
 ### Case 3: dense spacing
+set.seed(123)
+
 dis <- 2
 z <- round(seq(0.5,100, 0.5),2)
 x <- seq(1, 100, dis*0.5)
@@ -1120,6 +1235,10 @@ for (i in sample.int(n_samp,30)) {
 }
 title(main = "RW2 for dense covariate: g(.)")
 
+dev.copy(pdf,'sim3-g-RW2.pdf')
+dev.off()
+
+
 
 tmbdat <- list(
   # Design matrix
@@ -1175,6 +1294,11 @@ title(main = "ARIMA for dense covariate: g(.)")
 
 
 
+dev.copy(pdf,'sim3-g-ARIMA.pdf')
+dev.off()
+
+
+
 
 
 #### First deriv:
@@ -1224,6 +1348,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_rw2_1stDeriv[,i])/h ~ z[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim3-g1st-RW2.pdf')
+dev.off()
 
 
 
@@ -1240,6 +1366,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_arima_1stDeriv[,i])/h ~ z[-1], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim3-g1st-ARIMA.pdf')
+dev.off()
 
 
 
@@ -1256,6 +1384,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_rw2_2ndDeriv[,i])/(h^2) ~ z[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim3-g2nd-RW2.pdf')
+dev.off()
 
 
 plot(diff(compute_g(z), differences = 2)/(h^2) ~ z[-c(1,2)], type = 'l', col = 'black', 
@@ -1269,6 +1399,8 @@ for (i in sample.int(n_samp,5)) {
   lines(unlist(sample_path_arima_2ndDeriv[,i])/(h^2) ~ z[-c(1,2)], col = rgb(0, 0, 255, max = 255, alpha = 20, names = "grey"))
 }
 
+dev.copy(pdf,'sim3-g2nd-ARIMA.pdf')
+dev.off()
 
 
 
