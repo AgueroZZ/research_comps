@@ -206,8 +206,8 @@ z_location <- which(all_grid %in% z)
 construct_Z_matrix <- construct_A(all_grid, z_location)
 gz <- construct_Z_matrix %*% gw$samps[1:ncol(Q1), ]
 
-U_1st_Deriv <- apply(gz, 2, compute_deriv, order = 1)
-U_2nd_Deriv <- apply(gz, 2, compute_deriv, order = 2)
+U_1st_Deriv <- apply(gz, 2, compute_deriv, order = 1) * 52
+U_2nd_Deriv <- apply(gz, 2, compute_deriv, order = 2) * (52^2)
 
 
 mean_gz  <- apply(gz,1, mean)
@@ -240,6 +240,9 @@ for (i in sample.int(n_samp,10)) {
 }
 
 
+dev.copy(pdf,'2010_RW2_1st.pdf')
+dev.off()
+
 
 mean_gz_2nd  <- apply(U_2nd_Deriv,1, mean)
 upper_gz_2nd  <- apply(U_2nd_Deriv,1, quantile, p = 0.975)
@@ -255,6 +258,8 @@ for (i in sample.int(n_samp,3)) {
   lines(U_2nd_Deriv[,i] ~ z_days[-c(1,2)], col = rgb(240, 0, 0, max = 255, alpha = 40, names = "grey"))
 }
 
+dev.copy(pdf,'2010_RW2_2nd.pdf')
+dev.off()
 
 
 
@@ -379,7 +384,7 @@ lower_gw  <- apply(gw$samps,1, quantile, p = 0.025)
 
 ### Check hyperparameter:
 # Plot of theta1 posterior
-prec_marg <- quad$marginals[[1]]
+prec_marg <- quad2$marginals[[1]]
 logpostsigma <- compute_pdf_and_cdf(prec_marg,list(totheta = function(x) -2*log(x),fromtheta = function(x) exp(-x/2)),interpolation = 'spline')
 with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
 
@@ -387,7 +392,7 @@ with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
 
 
 # Plot of theta2 posterior
-prec_marg <- quad$marginals[[2]]
+prec_marg <- quad2$marginals[[2]]
 logpostsigma <- compute_pdf_and_cdf(prec_marg,list(totheta = function(x) -2*log(x),fromtheta = function(x) exp(-x/2)),interpolation = 'spline')
 with(logpostsigma,plot(transparam,pdf_transparam,type='l'))
 
@@ -399,8 +404,8 @@ z_location <- which(all_grid %in% z)
 construct_Z_matrix <- construct_A(all_grid, z_location)
 gz <- construct_Z_matrix %*% gw$samps[1:ncol(Q2), ]
 
-U_1st_Deriv <- apply(gz, 2, compute_deriv, order = 1)
-U_2nd_Deriv <- apply(gz, 2, compute_deriv, order = 2)
+U_1st_Deriv <- apply(gz, 2, compute_deriv, order = 1) * 52
+U_2nd_Deriv <- apply(gz, 2, compute_deriv, order = 2) * (52^2)
 
 
 mean_gz  <- apply(gz,1, mean)
@@ -431,17 +436,23 @@ mean(upper_gz - lower_gz)
 ### MCI: 0.4071836 for 90 percent
 
 
-plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(-0.01,0.1), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
+plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(0,5), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
 lines(upper_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 lines(lower_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 for (i in sample.int(n_samp,10)) {
   lines(U_1st_Deriv[,i] ~ z_days[-1], col = rgb(240, 0, 0, max = 255, alpha = 40, names = "grey"))
 }
 
+dev.copy(pdf,'2010_ARIMA_1st.pdf')
+dev.off()
+
+
 mean(upper_gz_1st - lower_gz_1st)
 ### MCI: 0.04734562 for 99 percent
 ### MCI: 0.03461681 for 95 percent
 ### MCI: 0.02857216 for 90 percent
+
+
 
 
 mean_gz_2nd  <- apply(U_2nd_Deriv,1, mean)
@@ -450,7 +461,7 @@ lower_gz_2nd  <- apply(U_2nd_Deriv,1, quantile, p = 0.025)
 
 z_2nd <- data.frame(mean = mean_gz_2nd, z = z[-c(1,2)], date = z_days[-c(1,2)])
 
-plot(mean_gz_2nd ~ date, type = 'l', data = z_2nd, ylim = c(-0.01,0.01), xlab = "Time", ylab = expression(paste(f[np], ":2nd derivative ", sep = "\ ")))
+plot(mean_gz_2nd ~ date, type = 'l', data = z_2nd, ylim = c(-25,25), xlab = "Time", ylab = expression(paste(f[np], ":2nd derivative ", sep = "\ ")))
 lines(upper_gz_2nd~date, lty = 'dashed', data = z_2nd, col = 'orange')
 lines(lower_gz_2nd~date, lty = 'dashed', data = z_2nd, col = 'orange')
 
@@ -458,7 +469,12 @@ for (i in sample.int(n_samp,3)) {
   lines(U_2nd_Deriv[,i] ~ z_days[-c(1,2)], col = rgb(240, 0, 0, max = 255, alpha = 40, names = "grey"))
 }
 
+dev.copy(pdf,'2010_ARIMA_2nd.pdf')
+dev.off()
+
 mean(upper_gz_2nd - lower_gz_2nd)
+
+
 
 ### MCI: 0.01654983 for 99 percent
 ### MCI: 0.01174789 for 95 percent
@@ -562,8 +578,8 @@ z_location <- which(all_grid %in% z)
 construct_Z_matrix <- construct_A(all_grid, z_location)
 gz <- construct_Z_matrix %*% gw$samps[1:ncol(Q1), ]
 
-U_1st_Deriv <- apply(gz, 2, compute_deriv, order = 1)
-U_2nd_Deriv <- apply(gz, 2, compute_deriv, order = 2)
+U_1st_Deriv <- apply(gz, 2, compute_deriv, order = 1) * 52
+U_2nd_Deriv <- apply(gz, 2, compute_deriv, order = 2) * (52^2)
 
 
 mean_gz  <- apply(gz,1, mean)
@@ -590,19 +606,25 @@ for (i in sample.int(n_samp,10)) {
 }
 mean(upper_gz - lower_gz)
 
+
 ### MCI: 0.6481862 for 99 percent
 ### MCI: 0.4896828 for 95 percent
 ### MCI: 0.4084033 for 90 percent
 
 
-plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(-0.01,0.1), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
+plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(0,5), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
 lines(upper_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 lines(lower_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 for (i in sample.int(n_samp,10)) {
   lines(U_1st_Deriv[,i] ~ z_days[-1], col = rgb(240, 0, 0, max = 255, alpha = 40, names = "grey"))
 }
 
+dev.copy(pdf,'2010_RW2_1st.pdf')
+dev.off()
+
 mean(upper_gz_1st - lower_gz_1st)
+
+
 ### MCI: 0.04770736 for 99 percent
 ### MCI: 0.03491584 for 95 percent
 ### MCI: 0.02883124 for 90 percent
@@ -614,13 +636,16 @@ lower_gz_2nd  <- apply(U_2nd_Deriv,1, quantile, p = 0.025)
 
 z_2nd <- data.frame(mean = mean_gz_2nd, z = z[-c(1,2)], date = z_days[-c(1,2)])
 
-plot(mean_gz_2nd ~ date, type = 'l', data = z_2nd, ylim = c(-0.01,0.01), xlab = "Time", ylab = expression(paste(f[np], ":2nd derivative ", sep = "\ ")))
+plot(mean_gz_2nd ~ date, type = 'l', data = z_2nd, ylim = c(-25,25), xlab = "Time", ylab = expression(paste(f[np], ":2nd derivative ", sep = "\ ")))
 lines(upper_gz_2nd~date, lty = 'dashed', data = z_2nd, col = 'orange')
 lines(lower_gz_2nd~date, lty = 'dashed', data = z_2nd, col = 'orange')
 
 for (i in sample.int(n_samp,3)) {
   lines(U_2nd_Deriv[,i] ~ z_days[-c(1,2)], col = rgb(240, 0, 0, max = 255, alpha = 40, names = "grey"))
 }
+
+dev.copy(pdf,'2010_RW2_2nd.pdf')
+dev.off()
 
 mean(upper_gz_2nd - lower_gz_2nd)
 ### MCI: 0.01997148 for 99 percent

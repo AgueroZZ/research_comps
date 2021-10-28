@@ -1,0 +1,15 @@
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [1][-]{section.2}{Smoothing\040Spline}{}% 2
+\BOOKMARK [2][-]{subsection.2.1}{Fitting\040Smoothing\040Spline}{section.2}% 3
+\BOOKMARK [2][-]{subsection.2.2}{Bayesian\040Smoothing\040Spline\040with\040ARIMA\040Model}{section.2}% 4
+\BOOKMARK [1][-]{section.3}{Extended\040Second\040Order\040Random\040Walk\040Method\040To\040Smoothing\040Spline}{}% 5
+\BOOKMARK [2][-]{subsection.3.1}{Prior\040Based\040On\040Stochastic\040Differential\040Equation}{section.3}% 6
+\BOOKMARK [2][-]{subsection.3.2}{Finite\040Element\040Method\040and\040Weak\040Solution}{section.3}% 7
+\BOOKMARK [2][-]{subsection.3.3}{The\040Extended\040Second\040Order\040Random\040Walk\040Method}{section.3}% 8
+\BOOKMARK [1][-]{section.4}{Inference\040Method}{}% 9
+\BOOKMARK [1][-]{section.5}{Practical\040Comparison}{}% 10
+\BOOKMARK [2][-]{subsection.5.1}{Simulation\040with\040sparse\040locations}{section.5}% 11
+\BOOKMARK [2][-]{subsection.5.2}{Simulation\040with\040medium\040locations}{section.5}% 12
+\BOOKMARK [2][-]{subsection.5.3}{Simulation\040with\040dense\040locations}{section.5}% 13
+\BOOKMARK [2][-]{subsection.5.4}{Real\040Data\040Example}{section.5}% 14
+\BOOKMARK [1][-]{section.6}{Conclusion}{}% 15

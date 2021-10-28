@@ -11,6 +11,11 @@ Green, P.~J. and Silverman, B.~W. (2019).
   roughness penalty approach}.
 \newblock Chapman and Hall/CRC.
 
+\bibitem[Kristensen et~al., 2015]{kristensen2015tmb}
+Kristensen, K., Nielsen, A., Berg, C.~W., Skaug, H., and Bell, B. (2015).
+\newblock Tmb: automatic differentiation and laplace approximation.
+\newblock {\em arXiv preprint arXiv:1509.00660}.
+
 \bibitem[Lindgren and Rue, 2008]{rw2}
 Lindgren, F. and Rue, H. (2008).
 \newblock On the second-order random walk model for irregular locations.
@@ -27,6 +32,11 @@ Rue, H., Martino, S., and Chopin, N. (2009).
   integrated nested laplace approximations.
 \newblock {\em Journal of the Royal Statistical Society: Series B (Statistical
   Methodology)}, 71(2):319--392.
+
+\bibitem[Shepp, 1966]{shepp1966radon}
+Shepp, L.~A. (1966).
+\newblock Radon-nikodym derivatives of gaussian measures.
+\newblock {\em The Annals of Mathematical Statistics}, pages 321--354.
 
 \bibitem[Simpson et~al., 2017]{simpson2017penalising}
 Simpson, D., Rue, H., Riebler, A., Martins, T.~G., and S{\o}rbye, S.~H. (2017).
