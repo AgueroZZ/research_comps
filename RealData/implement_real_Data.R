@@ -50,6 +50,11 @@ allDays = seq(from = min(co2ext$day), to = max(co2ext$day),
 
 observed_dataset <- co2ext %>% filter(!is.na(co2ext$co2)) %>% select(c("co2", "cos12", "sin12", "cos6", "sin6", "dayInt", "day"))
 
+ggplot(data = observed_dataset) + geom_point(aes(y = co2, x = day)) + theme_classic()
+observed_dataset %>% filter(day >= "2010-01-01") %>% ggplot() + geom_point(aes(y = co2, x = day)) + theme_classic()
+
+
+
 designX <- as(as.matrix(observed_dataset[,-c(1,6,7)]), "dgTMatrix")
 
 

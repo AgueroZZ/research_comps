@@ -1,0 +1,448 @@
+\documentclass[10pt,usenames,dvipsnames,t]{beamer}
+
+\usetheme{metropolis}
+\setbeamersize{text margin left=10pt,text margin right=10pt} 
+\usetikzlibrary{calc}
+\usepackage{xcolor}
+\definecolor{lightgray}{RGB}{245, 246, 250}
+\definecolor{blue}{RGB}{64, 115, 158}
+\definecolor{darkblue}{RGB}{39, 60, 117}
+\definecolor{vectorpink}{HTML}{E40086}
+\definecolor{torontoblue}{HTML}{00204E}
+\definecolor{myorange}{RGB}{252,175,23}
+\definecolor{mypurple}{RGB}{160,118,180}
+\definecolor{mygreen}{HTML}{A6CE38}
+\definecolor{mygray}{gray}{0.6}
+\definecolor{myred}{HTML}{FF4136}
+\definecolor{bostonuniversityred}{rgb}{0.8, 0.0, 0.0}
+% \setbeamercolor{alerted text}{fg=orange}
+\setbeamercolor{frametitle}{fg=white,bg=torontoblue}
+\setbeamercolor{progress bar}{fg=vectorpink,bg=mygray}
+\setbeamercolor{background canvas}{bg=white}
+%\setbeamercolor{headline}{fg=vectorpink, bg=vectorpink}
+\setbeamercolor{block body}{bg=torontoblue!20,fg=black}
+\setbeamercolor{block title}{bg=torontoblue,fg=white}
+\usepackage{hyperref}
+\hypersetup{linkcolor=torontoblue}
+% spacing at top of slide
+\addtobeamertemplate{frametitle}{\vspace*{0cm}}{\vspace*{0.0cm}}
+\usepackage[normalem]{ulem}
+\newcommand{\mathcolorbox}[2]{\colorbox{#1}{$\displaystyle #2$}}
+\usepackage[makeroom,thicklines]{cancel}
+\renewcommand*{\CancelColor}{\color{vectorPink}}
+\newcommand\Wider[2][3em]{%
+\makebox[\linewidth][c]{%
+  \begin{minipage}{\dimexpr\textwidth+#1\relax}
+  \raggedright#2
+  \end{minipage}%
+  }%
+}
+\renewcommand{\indent}{\hspace*{2em}}
+\newcommand{\squeezeup}{\vspace{-2.5mm}}
+\beamertemplatenavigationsymbolsempty
+
+\usepackage{natbib}
+
+\newcommand{\EE}{\mathbb{E}}
+\newcommand{\Normal}{\text{N}}
+\newcommand{\KL}[2]{\text{KL}\left( #1,#2\right)}
+\newcommand{\Reals}{\mathbb{R}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\J}{\mathcal{J}}
+\newcommand{\M}{\mathcal{M}}
+\newcommand{\GP}{\mathcal{GP}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\abs}[1]{\left|#1\right|}
+\newcommand{\bracevec}[1]{\left\lbrace #1 \right\rbrace}
+\newcommand{\iid}{\overset{iid}{\sim}}
+\newcommand{\ind}{\overset{ind}{\sim}}
+
+\newcommand{\mb}[1]{\boldsymbol{#1}}
+
+\def\[#1\]{\begin{equation}\begin{aligned}#1\end{aligned}\end{equation}}
+\def\*[#1\]{\begin{align*}#1\end{align*}}
+
+\title{Approximate Bayesian Inference for Case Crossover Models}
+\author{Alex Stringer, Patrick Brown, Jamie Stafford}
+\institute{University of Toronto and Centre for Global Health Research, St. Michael's Hospital}
+\date{2020-04-17}
+
+\setbeamercovered{transparent}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Outline}
+\tableofcontents
+\end{frame}
+
+\section{Introduction and motivation}
+
+\begin{frame}
+\frametitle{Introduction}
+
+A \textbf{case crossover} model quantifies the association between mortality/morbidity and short-term exposure to risk factors.
+
+\pause
+
+\textbf{Example}: are short-term increases in cigarette smoking associated with increased risk of heart attack?
+
+\pause
+
+\textbf{Example}: is using a cell-phone while driving associated with increased risk of crash?
+
+\pause
+
+\textbf{Example}: \textcolor{bostonuniversityred}{are spikes or drops in daily temperature associated with increased mortality risk in India?}
+
+\pause
+
+Subject's exposure on day of death is compared to their exposure on one or more previous days on which they did not die.
+
+\pause
+
+Higher exposure on day of death provides evidence of a positive association between exposure and mortality risk.
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Motivating example: mortality/temperature in India}
+
+\textbf{Indian Million Death Study (MDS)}: largest comprehensive prospective study of mortality in human history. Data curated by CGHR in Toronto in collaboration with Registrar General of India.
+
+\pause
+
+Representative sample of one million housholds in India tracked for 15 years, 2001 -- 2016. All deaths recorded by verbal autopsy and classified by two independent physicians, with disputes resolved via moderation process.
+
+\pause
+
+Fantastically \textbf{accurate} and \textbf{comprehensive} source of data on human mortality.
+
+\pause
+
+\textbf{Our question}: are extreme \textbf{daily maximum temperatures} (very hot or very cold) associated with increased mortality risk due to \textbf{stroke}?
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Motivating example: mortality/temperature in India}
+
+\textbf{Approach}: link $\approx 13,000$ people who died from stroke in the MDS data with existing temperature data from India. \pause Look at the max temperature on each subject's date of death and that on days from 3 -- 5 weeks prior. \pause Data already exists, no need to design a study or collect new data for this.
+
+\pause
+
+\citet{temperature} did this using existing methods:
+
+\end{frame}
+
+\begin{frame}
+
+\frametitle{Motivating example: mortality/temperature in India}
+
+\textbf{Approach}: link $\approx 13,000$ people who died from stroke in the MDS data with existing temperature data from India. Look at the max temperature on each subject's date of death and that on days from 3 -- 5 weeks prior. Data already exists, no need to design a study or collect new data for this.
+
+\citet{temperature} did this using existing methods:
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=2.5in,height=1.5in]{figures/fu-2-1.png}
+\caption{Risk of stroke mortality relative to that at 32 degrees celcius.}
+\label{fig:fu1}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}
+
+\citet{temperature} uses \textbf{spline} methods and \textbf{maximum likelihood} within a modified Cox proportional hazards model. \pause This requires choosing the \textbf{number} and \textbf{placement} of spline knots:
+
+\end{frame}
+
+\begin{frame}
+
+\citet{temperature} uses \textbf{spline} methods and \textbf{maximum likelihood} within a modified Cox proportional hazards model. This requires choosing the \textbf{number} and \textbf{placement} of spline knots:
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth,height=2in]{../biometrics-paper/data-analysis/figures/splineplot-v1.pdf}
+\caption{The results are sensitive to the number and placement of the spline knots.}
+\label{fig:indian}
+\end{figure}
+\vspace{-.2in}
+{\small (Note: y-axis differs because they use daily average temperature and we use daily maximum temperature. Pattern is the same.)}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Challenges}
+
+Challenges:
+\pause
+\begin{enumerate}
+\item Different \textbf{spline knots} will lead to different curves.
+\pause
+\item No \textbf{model-based} way to estimate and quantify the uncertainty in the smoothness of the curve.
+\pause
+\item Even if you have a good idea of how to approach 1. and 2., there is no principled way to incorporate this \textbf{prior knowledge} about what the curve should look like. 
+\end{enumerate}
+
+\pause
+
+\textbf{Bayesian inference} and \textbf{random walk smoothing} address these challenges, but lead to \textbf{intractable computations}.
+
+\pause
+
+We will develop an approximate Bayesian inference methodology for case crossover models that is \textbf{computationally tractable}, \pause provides \textbf{model-based} estimation and uncertainty quantification for the smoothness of the curve, \pause and is \textbf{not sensitive} to the number and placement of knots \pause (``knot sensitive''... sorry I couldn't help myself).
+
+\end{frame}
+
+\subsection{Case Crossover Models}
+
+\section{Model and Inference Methodology}
+
+\begin{frame}{Case Crossover Models \citep{stringercc}}
+
+
+Let $Y_{i},i\in[n]$ represent the death date of the $i^{th}$ subject, $i = 1,\ldots,n = 13,493$. Let $y_{i}$ be its realization in the observed data.
+
+\pause
+
+Let $S_{i} = \bracevec{c_{i1},\ldots,c_{iT_{i}}}$ be the set of \textbf{control days}--days on which the subject \emph{could} have died but didn't--for each subject. Chosen by the analyst as part of the study design.
+
+\pause
+
+For $t\in\bigcup_{i=1}^{n}\bracevec{y_{i}}\cup S_{i}$ let $x_{t}$ denote the maximum temperature on day $t$.
+
+\pause
+
+Let $\lambda\left( x_{t} \right)$ represent the probability of dying at temperature $x_{t}$. 
+
+\pause
+
+\textbf{Assumption}: each subject's \textbf{baseline risk} of dying due to time-independent risk factors is the same on day $y_{i}$ and each day $t\in S_{i}$.
+
+\pause
+
+The model is:
+\*[
+Y_{i} | \lambda(\cdot)&\overset{ind}{\sim}\text{Multinomial}\left[\lambda(x_{y_{i}}),\lambda(x_{c_{i1}}),\ldots,\lambda(x_{c_{iT_{i}}})\right] \\
+\eta_{it} &= \log\lambda(x_{t}) = u(x_{t}), t\in\bracevec{y_{i}}\cup S_{i}
+\]
+
+\end{frame}
+
+\subsection{Smoothing and Bayesian Inference}
+
+\begin{frame}
+\frametitle{Smoothing and Bayesian Inference \citep{stringercc}}
+
+The object of inferential interest is the underlying \textbf{continuous process} $u(x)$.
+
+\pause
+
+Put a \textbf{Gaussian process} prior $u(\cdot)|\sigma(\cdot,\cdot)\sim\GP\left[ 0,\sigma(\cdot,\cdot)\right]$.
+
+\pause
+
+Discretize temperature into bins $B_{1} = [10,10.1),\ldots,B_{d} = [38,38.1)$. $d = 277$ takes the place of the \textbf{number} and the midpoints of $B_{j}$ take the place of the \textbf{placement} of spline knots.
+
+\pause
+
+For each $i\in[n],t\in\bracevec{y_{i}}\cup S_{i}$ define $j_{i,t} = \bracevec{j: x(t)\in B_{j}}$.
+
+\pause
+
+Define the \textbf{piecewise-constant} approximation $U_{j_{i,t}} = u(x_{t}), i\in[n],t\in\bracevec{y_{i}}\cup S_{i}$.
+
+\pause
+
+The $\GP$ prior on $u(\cdot)$ is equivalent to a finite-dimensional Gaussian prior on $\mb{U} = (U_{1},\ldots,U_{d})|\sigma_{u}$.
+
+\pause
+
+The posterior median and quantiles for $U_{j}|\mb{Y},j\in[d]$ are plotted, giving an estimate and uncertainty quantification for $u(\cdot)$.
+
+\pause
+
+The posterior mode and quantiles for $\sigma_{u}|\mb{Y}$ provide a model-based estimate and uncertainty quantification for the \textbf{smoothness} of $u(\cdot)$.
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Smoothing and Bayesian Inference \citep{stringerrw}}
+
+Because data is only recorded on subjects who died, overall mortality risk in not estimable. Must infer risk \textbf{relative} to that at a chosen reference point.
+
+\pause
+
+Some care is required in parametrizing the smoothing models in this setting–- outside scope for this talk.
+
+\pause
+
+Use a constrained \textbf{third-order random walk}:
+\*[
+-U_{j+2} + 3U_{j+1} -3U_{j} + U_{j-1}|\sigma^{2}_{u} &\overset{iid}{\sim}\Normal\left(0,.1^{2}\sigma^{2}_{u}\right), j=2,\ldots,d-2 \\
+(U_{31},U_{33} - U_{31})&\overset{ind}{\sim}\Normal\left[0,1000\times\text{diag}(1,.1)\right] \\
+U_{32} &= 0 \\
+\]
+This encodes our \textbf{prior belief} that $u(\cdot)$ is \textbf{smooth}. How smooth is determined by $\sigma_{u}$, \pause and $\sigma_{u}$ is estimated by the data (with uncertainty quantification!)
+
+\pause
+
+Changing the bins (spline knots) changes the smoothness, but not the shape, of $u(\cdot)$.
+
+\end{frame}
+
+\subsection{Approximate Bayesian Inference}
+
+\begin{frame}{Approximate Bayesian Inference \citep{stringernoeps}}
+
+Let $\theta = -2\log\sigma_{u}$. The objects of inferential interest are the posteriors \pause
+\*[
+\pi(U_{j}|\mb{Y}) &= \int\int\pi(\mb{U}|\mb{Y},\theta)\pi(\theta|\mb{Y})d\mb{U}_{-j}d\theta, j\in[d] \\
+\pi(\theta|\mb{Y}) &= \frac{\int\pi(\mb{U},\theta,\mb{Y})d\mb{U}}{\int\pi(\mb{U},\theta,\mb{Y})d\mb{U}d\theta}
+\]
+\pause
+Yikes.
+
+\pause
+
+Choose a \textbf{quadrature grid} and corresponding weights $\bracevec{\theta^{k},\Delta^{k}:k\in[K]}$. For each $k\in[K]$...
+\pause
+
+\begin{enumerate}
+\item Approximate $\pi(\theta^{k}|\mb{Y})\approx\tilde{\pi}_{LA}(\theta^{k}|\mb{Y})$, a \textbf{Laplace approximation} \citep{tierney},
+\pause
+\item Approximate $\pi(\mb{U}|\mb{Y},\theta^{k}) \approx \tilde{\pi}_{G}(\mb{U}|\mb{Y},\theta^{k})$, a \textbf{Gaussian approximation}. This also gives a univariate Gaussian approximation $\tilde{\pi}_{G}(U_{j}|\mb{Y},\theta^{k}) = \int\tilde{\pi}_{G}(\mb{U}|\mb{Y},\theta^{k})d\mb{U}_{-j}$.
+\end{enumerate}
+\pause
+
+Then approximate $\pi(U_{j}|\mb{Y}) \approx \sum_{k=1}^{K}\tilde{\pi}_{G}(U_{j}|\mb{Y},\theta^{k})\tilde{\pi}_{LA}(\theta^{k}|\mb{Y})\Delta^{k}$.
+
+\end{frame}
+
+\begin{frame}{Speed and Scalability \citep{stringernoeps}}
+
+The approximation methodology is \textbf{fast} and \textbf{scales} to (very) high dimensions.
+\pause
+
+The \textbf{Gaussian approximation} requires repeated high-dimensional optimizations. The objective function is \textbf{convex} and has a \textbf{sparse Hessian}, and we use \textbf{trust region} optimization \citep{trustoptim} to do this \textbf{fast} and \textbf{stable}.
+
+\pause
+
+The \textbf{Laplace approximation} requires the modes already found for the Gaussian approximations. It requires the determinants of two large sparse matrices for each $\theta^{k}$, which we compute using the \textbf{sparse Cholesky decomposition}.
+
+\pause
+
+We follow the \textbf{NIM} (\textbf{N}ever \textbf{I}nvert a \textbf{M}atrix) philosophy for fast and memory-efficient computation. \pause For the marginal Gaussian approximations $\tilde{\pi}_{G}(U_{j}|\mb{Y},\theta^{k})$ we require the diagonal of the inverse of a large sparse matrix, which we also get using the sparse Cholesky decompostion \citep{gmrfmodels}.
+
+\pause
+
+The computations which need to be done for multiple $\theta^{k}$ are done in \textbf{parallel}, and we can (and definitely do) leverage massive cloud computing technology when necessary.
+
+\end{frame}
+
+\section{Results}
+
+\begin{frame}{Results}
+
+\begin{figure}[t]
+\centering
+\makebox{\includegraphics[width=0.49\textwidth,height=2in]{/Users/alexstringer/phd/projects/no-epsilon/figures/sigmaplot-indian.pdf}}
+\makebox{\includegraphics[width=0.49\textwidth,height=2in]{/Users/alexstringer/phd/projects/no-epsilon/figures/rw3-indian.pdf}}
+\caption{Approximation to the posterior distribution of the smoothing standard deviation ($\sigma_{u}$, left) and posterior median and $95\%$ credible intervals for the temperature effect for the Indian mortality data.}
+\label{fig:casecross}
+\end{figure}
+
+\end{frame}
+
+\section{Summary and Extensions}
+
+\begin{frame}{Summary}
+\pause
+
+Introduced an approximate Bayesian inference methodology for case crossover models.
+
+\pause
+
+Inferred relative risk of death due to stroke as a function of temperature using data from the Indian Million Death Study.
+
+\pause
+
+Bayesian inference provided \textbf{model-based estimation and uncertainty quantification} for the smoothness of the temperature effect.
+
+\pause
+
+Method is \textbf{not sensitive} to the number and placement of bins (spline knots).
+
+\pause
+
+Computations are \textbf{fast and scalable} due to the use of sparse matrix algebra and stable optimization algorithms.
+
+\end{frame}
+
+\begin{frame}{Extensions}
+
+\pause
+
+The smoothing models and inference methodology were developed in separate projects and each could have its own talk.
+
+\pause
+
+They are widely applicable. I have the following examples ready:
+\pause
+
+\begin{enumerate}
+\item A Bernoulli GLMM fit to nearly $8$ million discharge records from drug treatment centres in the USA, with observations correlated within towns within states,
+\pause
+
+\item A log-Gaussian Cox process fit to spatially-aggregated mortality counts in England and Wales,
+\pause
+
+\item Semi-parametric Cox proportional hazards regression fit to a classic dataset on Leukaemia survival times,
+\pause
+
+\item Simulated semi-parametric Poisson regression where I use stochastic optimization to fit the model to dataset of size up to $n = 1,000,000,000$...
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}{Extensions}
+...and have the following on deck:
+\pause
+
+\begin{enumerate}
+\item A semi-parametric Age-Period-Cohort model for American opioid mortality data, using two-dimensional random walks for age/year interaction effects,
+\pause
+
+\item A model for estimating the mass of the Milky Way using astronomical data which is subject to measurement error,
+\pause
+
+\item Two further examples of the need for stochastic optimization: a Cox-PH model fit to the opioid treatment centre data and a semi-parametric regression fit to astronomical measurements from 1.7 Billion stars,
+\pause
+
+\item Bayesian neural networks (?)
+\end{enumerate}
+
+\end{frame}
+
+\begin{frame}
+\bibliography{../biometrics-paper/bibliography}
+\bibliographystyle{chicago}
+\end{frame}
+
+\begin{frame}{Questions?}
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth,height=2.7in]{homer-question.png}
+\end{figure}
+\end{frame}
+
+\end{document}

@@ -1,0 +1,48 @@
+\begin{thebibliography}{}
+
+\bibitem[\protect\citeauthoryear{Braun}{Braun}{2014}]{trustoptim}
+Braun, M. (2014).
+\newblock {trustOptim}: An {R} package for trust region optimization with
+  sparse hessians.
+\newblock {\em Journal of Statistical Software\/}~{\em 60\/}(4), 1--16.
+
+\bibitem[\protect\citeauthoryear{Lindgren and Rue}{Lindgren and
+  Rue}{2008}]{rw2}
+Lindgren, F. and H.~Rue (2008).
+\newblock On the second-order random walk model for irregular locations.
+\newblock {\em Scandinavian Journal of Statistics\/}~{\em 35\/}(4), 691--700.
+
+\bibitem[\protect\citeauthoryear{Martino, Akerkar, and Rue}{Martino
+  et~al.}{2011}]{inlacoxph}
+Martino, S., R.~Akerkar, and H.~Rue (2011).
+\newblock Approximate bayesian inference for survival models.
+\newblock {\em Scandinavian Journal of Statistics\/}~{\em 38\/}(3), 514--528.
+
+\bibitem[\protect\citeauthoryear{Simpson, Rue, Martins, Riebler, and
+  Sørbye}{Simpson et~al.}{2017}]{pcprior}
+Simpson, D., H.~Rue, T.~G. Martins, A.~Riebler, and S.~H. Sørbye (2017).
+\newblock Penalising model component complexity: A principled, practical
+  approach to constructing priors.
+\newblock {\em Statistical Science\/}~{\em 32\/}(1).
+
+\bibitem[\protect\citeauthoryear{Stringer, Brown, and Stafford}{Stringer
+  et~al.}{2020}]{casecross}
+Stringer, A., P.~Brown, and J.~Stafford (2020).
+\newblock Approximate bayesian inference for case crossover models.
+\newblock {\em Biometrics\/}.
+
+\bibitem[\protect\citeauthoryear{Tierney and Kadane}{Tierney and
+  Kadane}{1986}]{tierney}
+Tierney, L. and J.~B. Kadane (1986).
+\newblock Accurate approximations to posterior moments and marginal densities.
+\newblock {\em Journal of the American Statistical Association\/}~{\em
+  81\/}(393).
+
+\bibitem[\protect\citeauthoryear{Vaupel, Manton, and Stallard}{Vaupel
+  et~al.}{1979}]{frailty}
+Vaupel, J.~W., K.~G. Manton, and E.~Stallard (1979).
+\newblock The impact of heterogeneity in individual frailty on the dynamics of
+  mortality.
+\newblock {\em Demography\/}~{\em 16\/}(3), 439--454.
+
+\end{thebibliography}

@@ -1,0 +1,61 @@
+\begin{thebibliography}{}
+
+\bibitem[\protect\citeauthoryear{Brown and {De Jong}}{Brown and {De
+  Jong}}{2001}]{ARIMA}
+Brown, P. and P.~{De Jong} (2001, March).
+\newblock Nonparametric smoothing using state space techniques.
+\newblock {\em Canadian Journal of Statistics\/}~{\em 29\/}(1), 37--50.
+
+\bibitem[\protect\citeauthoryear{Kristensen, Nielsen, Berg, Skaug, and
+  Bell}{Kristensen et~al.}{2015}]{kristensen2015tmb}
+Kristensen, K., A.~Nielsen, C.~W. Berg, H.~Skaug, and B.~Bell (2015).
+\newblock Tmb: automatic differentiation and laplace approximation.
+\newblock {\em arXiv preprint arXiv:1509.00660\/}.
+
+\bibitem[\protect\citeauthoryear{Lindgren and Rue}{Lindgren and
+  Rue}{2008}]{rw2}
+Lindgren, F. and H.~Rue (2008).
+\newblock On the second-order random walk model for irregular locations.
+\newblock {\em Scandinavian Journal of Statistics\/}~{\em 35\/}(4), 691--700.
+
+\bibitem[\protect\citeauthoryear{Rue and Held}{Rue and
+  Held}{2005}]{rue2005gaussian}
+Rue, H. and L.~Held (2005).
+\newblock {\em Gaussian Markov random fields: theory and applications}.
+\newblock CRC press.
+
+\bibitem[\protect\citeauthoryear{Rue, Martino, and Chopin}{Rue
+  et~al.}{2009}]{inla}
+Rue, H., S.~Martino, and N.~Chopin (2009).
+\newblock Approximate bayesian inference for latent gaussian models by using
+  integrated nested laplace approximations.
+\newblock {\em Journal of the Royal Statistical Society: Series B (Statistical
+  Methodology)\/}~{\em 71\/}(2), 319--392.
+
+\bibitem[\protect\citeauthoryear{Simpson, Rue, Riebler, Martins, and
+  S{\o}rbye}{Simpson et~al.}{2017}]{simpson2017penalising}
+Simpson, D., H.~Rue, A.~Riebler, T.~G. Martins, and S.~H. S{\o}rbye (2017).
+\newblock Penalising model component complexity: A principled, practical
+  approach to constructing priors.
+\newblock {\em Statistical science\/}~{\em 32\/}(1), 1--28.
+
+\bibitem[\protect\citeauthoryear{Stringer}{Stringer}{2021}]{aghq}
+Stringer, A. (2021).
+\newblock Implementing approximate bayesian inference using adaptive
+  quadrature: the aghq package.
+
+\bibitem[\protect\citeauthoryear{Tierney and Kadane}{Tierney and
+  Kadane}{1986}]{tierney1986accurate}
+Tierney, L. and J.~B. Kadane (1986).
+\newblock Accurate approximations for posterior moments and marginal densities.
+\newblock {\em Journal of the american statistical association\/}~{\em
+  81\/}(393), 82--86.
+
+\bibitem[\protect\citeauthoryear{Wahba}{Wahba}{1978}]{wahba}
+Wahba, G. (1978).
+\newblock Improper priors, spline smoothing and the problem of guarding against
+  model errors in regression.
+\newblock {\em Journal of the Royal Statistical Society. Series B
+  (Methodological)\/}~{\em 40\/}(3), 364--372.
+
+\end{thebibliography}

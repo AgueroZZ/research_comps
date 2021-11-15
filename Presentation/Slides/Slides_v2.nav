@@ -1,0 +1,73 @@
+\headcommand {\slideentry {0}{0}{1}{1/1}{}{0}}
+\headcommand {\beamer@framepages {1}{1}}
+\headcommand {\slideentry {0}{0}{2}{2/2}{}{0}}
+\headcommand {\beamer@framepages {2}{2}}
+\headcommand {\beamer@sectionpages {1}{2}}
+\headcommand {\beamer@subsectionpages {1}{2}}
+\headcommand {\sectionentry {1}{Motivation}{3}{Motivation}{0}}
+\headcommand {\beamer@subsectionpages {3}{2}}
+\headcommand {\beamer@subsectionentry {0}{1}{1}{3}{CO2 Concentration Data}}
+\headcommand {\slideentry {1}{1}{1}{3/3}{CO2 Concentration Data}{0}}
+\headcommand {\beamer@framepages {3}{3}}
+\headcommand {\slideentry {1}{1}{2}{4/9}{CO2 Concentration Data}{0}}
+\headcommand {\beamer@framepages {4}{9}}
+\headcommand {\beamer@subsectionpages {3}{9}}
+\headcommand {\beamer@subsectionentry {0}{1}{2}{10}{Smoothing Spline}}
+\headcommand {\slideentry {1}{2}{1}{10/14}{Smoothing Spline}{0}}
+\headcommand {\beamer@framepages {10}{14}}
+\headcommand {\beamer@sectionpages {3}{14}}
+\headcommand {\beamer@subsectionpages {10}{14}}
+\headcommand {\sectionentry {2}{Going to Bayesian}{15}{Going to Bayesian}{0}}
+\headcommand {\beamer@subsectionpages {15}{14}}
+\headcommand {\beamer@subsectionentry {0}{2}{1}{15}{ARIMA Prior}}
+\headcommand {\slideentry {2}{1}{1}{15/21}{ARIMA Prior}{0}}
+\headcommand {\beamer@framepages {15}{21}}
+\headcommand {\slideentry {2}{1}{2}{22/24}{ARIMA Prior}{0}}
+\headcommand {\beamer@framepages {22}{24}}
+\headcommand {\slideentry {2}{1}{3}{25/28}{ARIMA Prior}{0}}
+\headcommand {\beamer@framepages {25}{28}}
+\headcommand {\beamer@subsectionpages {15}{28}}
+\headcommand {\beamer@subsectionentry {0}{2}{2}{29}{RW2 Prior}}
+\headcommand {\slideentry {2}{2}{1}{29/32}{RW2 Prior}{0}}
+\headcommand {\beamer@framepages {29}{32}}
+\headcommand {\slideentry {2}{2}{2}{33/37}{RW2 Prior}{0}}
+\headcommand {\beamer@framepages {33}{37}}
+\headcommand {\slideentry {2}{2}{3}{38/42}{RW2 Prior}{0}}
+\headcommand {\beamer@framepages {38}{42}}
+\headcommand {\beamer@sectionpages {15}{42}}
+\headcommand {\beamer@subsectionpages {29}{42}}
+\headcommand {\sectionentry {3}{Computation}{43}{Computation}{0}}
+\headcommand {\slideentry {3}{0}{1}{43/44}{}{0}}
+\headcommand {\beamer@framepages {43}{44}}
+\headcommand {\slideentry {3}{0}{2}{45/47}{}{0}}
+\headcommand {\beamer@framepages {45}{47}}
+\headcommand {\slideentry {3}{0}{3}{48/51}{}{0}}
+\headcommand {\beamer@framepages {48}{51}}
+\headcommand {\beamer@sectionpages {43}{51}}
+\headcommand {\beamer@subsectionpages {43}{51}}
+\headcommand {\sectionentry {4}{Example}{52}{Example}{0}}
+\headcommand {\beamer@subsectionpages {52}{51}}
+\headcommand {\beamer@subsectionentry {0}{4}{1}{52}{Continue on CO2 Example}}
+\headcommand {\slideentry {4}{1}{1}{52/52}{Continue on CO2 Example}{0}}
+\headcommand {\beamer@framepages {52}{52}}
+\headcommand {\slideentry {4}{1}{2}{53/53}{Continue on CO2 Example}{0}}
+\headcommand {\beamer@framepages {53}{53}}
+\headcommand {\slideentry {4}{1}{3}{54/54}{Continue on CO2 Example}{0}}
+\headcommand {\beamer@framepages {54}{54}}
+\headcommand {\beamer@subsectionpages {52}{54}}
+\headcommand {\beamer@subsectionentry {0}{4}{2}{55}{Simulation Study}}
+\headcommand {\slideentry {4}{2}{1}{55/55}{Simulation Study}{0}}
+\headcommand {\beamer@framepages {55}{55}}
+\headcommand {\beamer@sectionpages {52}{55}}
+\headcommand {\beamer@subsectionpages {55}{55}}
+\headcommand {\sectionentry {5}{Conclusion and Next Step}{56}{Conclusion and Next Step}{0}}
+\headcommand {\slideentry {5}{0}{1}{56/59}{}{0}}
+\headcommand {\beamer@framepages {56}{59}}
+\headcommand {\beamer@sectionpages {56}{59}}
+\headcommand {\beamer@subsectionpages {56}{59}}
+\headcommand {\sectionentry {6}{References}{60}{References}{0}}
+\headcommand {\beamer@partpages {1}{61}}
+\headcommand {\beamer@subsectionpages {56}{61}}
+\headcommand {\beamer@sectionpages {56}{61}}
+\headcommand {\beamer@documentpages {61}}
+\headcommand {\gdef \inserttotalframenumber {19}}

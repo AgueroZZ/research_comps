@@ -1,0 +1,14 @@
+\babel@toc {english}{}
+\beamer@sectionintoc {1}{Introduction and Motivation}{3}{0}{1}
+\beamer@subsectionintoc {1}{1}{Survival Analysis}{3}{0}{1}
+\beamer@subsectionintoc {1}{2}{Cox Proportional Hazard Model}{17}{0}{1}
+\beamer@subsectionintoc {1}{3}{Partial likelihood function}{21}{0}{1}
+\beamer@subsectionintoc {1}{4}{Motivations of Proposed Method}{27}{0}{1}
+\beamer@sectionintoc {2}{Models and Methodology}{34}{0}{2}
+\beamer@subsectionintoc {2}{1}{Revisit of the Models}{34}{0}{2}
+\beamer@subsectionintoc {2}{2}{Smoothing effect}{39}{0}{2}
+\beamer@subsectionintoc {2}{3}{Approximation Method}{43}{0}{2}
+\beamer@sectionintoc {3}{Applications and Results}{52}{0}{3}
+\beamer@subsectionintoc {3}{1}{Simulation Study}{52}{0}{3}
+\beamer@subsectionintoc {3}{2}{Applications for Leukaemia Data}{59}{0}{3}
+\beamer@sectionintoc {4}{Summary and Possible Extension}{64}{0}{4}

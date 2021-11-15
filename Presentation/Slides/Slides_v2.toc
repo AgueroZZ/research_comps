@@ -1,0 +1,12 @@
+\babel@toc {english}{}
+\beamer@sectionintoc {1}{Motivation}{3}{0}{1}
+\beamer@subsectionintoc {1}{1}{CO2 Concentration Data}{3}{0}{1}
+\beamer@subsectionintoc {1}{2}{Smoothing Spline}{10}{0}{1}
+\beamer@sectionintoc {2}{Going to Bayesian}{15}{0}{2}
+\beamer@subsectionintoc {2}{1}{ARIMA Prior}{15}{0}{2}
+\beamer@subsectionintoc {2}{2}{RW2 Prior}{29}{0}{2}
+\beamer@sectionintoc {3}{Computation}{43}{0}{3}
+\beamer@sectionintoc {4}{Example}{52}{0}{4}
+\beamer@subsectionintoc {4}{1}{Continue on CO2 Example}{52}{0}{4}
+\beamer@subsectionintoc {4}{2}{Simulation Study}{55}{0}{4}
+\beamer@sectionintoc {5}{Conclusion and Next Step}{56}{0}{5}

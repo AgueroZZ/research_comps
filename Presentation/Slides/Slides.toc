@@ -1,0 +1,13 @@
+\babel@toc {english}{}
+\beamer@sectionintoc {1}{Introduction}{3}{0}{1}
+\beamer@subsectionintoc {1}{1}{Why Bayesian smoothing spline?}{3}{0}{1}
+\beamer@subsectionintoc {1}{2}{Exact method with ARIMA prior}{13}{0}{1}
+\beamer@sectionintoc {2}{Extended RW2 method}{17}{0}{2}
+\beamer@subsectionintoc {2}{1}{SDE-based prior}{17}{0}{2}
+\beamer@subsectionintoc {2}{2}{Finite element method}{21}{0}{2}
+\beamer@subsectionintoc {2}{3}{Extended RW2}{25}{0}{2}
+\beamer@sectionintoc {3}{Computations}{31}{0}{3}
+\beamer@sectionintoc {4}{Examples}{38}{0}{4}
+\beamer@subsectionintoc {4}{1}{Simulation Studies}{38}{0}{4}
+\beamer@subsectionintoc {4}{2}{C02 Concentration Data}{44}{0}{4}
+\beamer@sectionintoc {5}{Conclusions}{51}{0}{5}
