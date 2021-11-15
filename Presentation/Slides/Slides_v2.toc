@@ -9,4 +9,4 @@
 \beamer@sectionintoc {4}{Example}{52}{0}{4}
 \beamer@subsectionintoc {4}{1}{Continue on CO2 Example}{52}{0}{4}
 \beamer@subsectionintoc {4}{2}{Simulation Study}{55}{0}{4}
-\beamer@sectionintoc {5}{Conclusion and Next Step}{56}{0}{5}
+\beamer@sectionintoc {5}{Conclusion}{56}{0}{5}
