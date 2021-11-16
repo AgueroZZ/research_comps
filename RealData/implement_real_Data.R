@@ -8,7 +8,9 @@ library(INLA)
 n_samp = 3000
 
 
-source("/Users/ziangzhang/Documents/research_comps/RealData/function_used.R")
+# source("/Users/ziangzhang/Documents/research_comps/RealData/function_used.R")
+source("./function_used.R")
+compile(file = "./Real_Smoothing.cpp")
 dyn.load(dynlib("Real_Smoothing"))
 
 #### Load data, select rows
@@ -237,7 +239,7 @@ for (i in sample.int(n_samp,10)) {
 }
 
 
-plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(-0.01,0.1))
+plot(mean_gz_1st ~ date, type = 'l', data = z_1st)
 lines(upper_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 lines(lower_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 for (i in sample.int(n_samp,10)) {
@@ -255,7 +257,7 @@ lower_gz_2nd  <- apply(U_2nd_Deriv,1, quantile, p = 0.025)
 
 z_2nd <- data.frame(mean = mean_gz_2nd, z = z[-c(1,2)], date = z_days[-c(1,2)])
 
-plot(mean_gz_2nd ~ date, type = 'l', data = z_2nd, ylim = c(-0.01,0.01))
+plot(mean_gz_2nd ~ date, type = 'l', data = z_2nd)
 lines(upper_gz_2nd~date, lty = 'dashed', data = z_2nd, col = 'orange')
 lines(lower_gz_2nd~date, lty = 'dashed', data = z_2nd, col = 'orange')
 
@@ -441,7 +443,7 @@ mean(upper_gz - lower_gz)
 ### MCI: 0.4071836 for 90 percent
 
 
-plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(0,5), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
+plot(mean ~ date, type = 'l', data = z_1st[z_1st$date >= "2019-01-01",], ylim = c(0,5), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
 lines(upper_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 lines(lower_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 for (i in sample.int(n_samp,10)) {
@@ -617,7 +619,7 @@ mean(upper_gz - lower_gz)
 ### MCI: 0.4084033 for 90 percent
 
 
-plot(mean_gz_1st ~ date, type = 'l', data = z_1st, ylim = c(0,5), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
+plot(mean ~ date, type = 'l', data = z_1st, ylim = c(0,5), xlab = "Time", ylab = expression(paste(f[np], ":1st derivative ", sep = "\ ")))
 lines(upper_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 lines(lower_gz_1st ~ date, lty = 'dashed', data = z_1st, col = 'orange')
 for (i in sample.int(n_samp,10)) {

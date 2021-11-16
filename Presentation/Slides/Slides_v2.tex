@@ -72,36 +72,36 @@ Consider the atmospheric Carbon Dioxide (CO2) concentrations data from an observ
 \begin{frame}
 \textbf{Model:} 
 \pause
-$$y_i = f_{p}(t_i) + f_{np}(t_i) + \epsilon_i$$
+$$y_i = \boldsymbol{X}(t_i) \boldsymbol{\beta} + f_{np}(t_i) + \epsilon_i$$
 
 \begin{itemize}
 \pause
-\item  $\epsilon_i \overset{iid}\sim N(0,\sigma_\epsilon^2)$
+\item  $\epsilon_i \overset{iid}\sim N(0,\sigma^2)$
 \pause
-\item $f_{p}(t_i)$ is defined as  
-$ \beta_0 + \beta_1 \cos(2\pi t) + \beta_2 \sin(2 \pi t) + \beta_3 \cos(4\pi t) + \beta_4 \sin(4\pi t).$
+\item $\boldsymbol{X}(t)$ is defined as  
+$[1, \cos(2 \pi t), \sin(2 \pi t), \cos(4 \pi t), \sin(4 \pi t)]$
 \pause
 \item $f_{np}(t_i)$ is the non-parametric part.
 \end{itemize}
 
 \pause
-\textbf{Question of interest:} A smooth function $f_{np}(t)$ as well as its derivative for $t \geq 2020$.
+\textbf{Question of interest:} Is CO2 concentration increasing rate getting slower post-COVID?
 \end{frame}
 
 
 \subsection{Smoothing Spline}
 \begin{frame}
 \begin{block}{Fitting Smoothing Spline}
-Consider $y_i = g(x_i) + \epsilon_i$ where $\epsilon_i \overset{iid}\sim N(0,\sigma_\epsilon^2)$ and $x_i \in [a,b]$, then the (traditional) smoothing spline aims to solve:
+Consider $y_i = g(x_i) + \epsilon_i$ where $\epsilon_i \overset{iid}\sim N(0,\sigma^2)$ and $x_i \in [a,b]$, then the (traditional) smoothing spline aims to solve:
 \pause
 \begin{equation}\label{equ:ss}
-\arg\min_{g\in C^2} \bigg\{ \sum_i \bigg(\frac{y_i-g(x_i)}{\sigma_\epsilon}\bigg)^2 + \lambda  \int_a^b g''(x)^2 dx \bigg\}
+\arg\min_{g\in C^2} \bigg\{ \sum_i \bigg(\frac{y_i-g(x_i)}{\sigma}\bigg)^2 + \lambda  \int_a^b g''(x)^2 dx \bigg\}
 \end{equation}
 \pause
 The sum of square term on the left can be replaced by negative log likelihood, which is also called \textit{penalized likelihood} method.
 \end{block}
 \pause
-\textbf{Problem:} The parameters $\sigma_\xi$ and $\lambda$ are unknown.
+\textbf{Problem:} The variance parameter $\sigma$ and smoothing parameter $\lambda$ are unknown.
 
 \pause
 \textbf{One Solution:} Bayesian hierarchical model.
@@ -116,7 +116,7 @@ The sum of square term on the left can be replaced by negative log likelihood, w
 Vectorize the equation \ref{equ:ss} into the following:
 \pause
 \begin{equation}\label{equ:vectorss}
-\frac{1}{ \sigma_\epsilon^2}(\boldsymbol{y} - \boldsymbol{g})^T (\boldsymbol{y} - \boldsymbol{g}) + \lambda \boldsymbol{g}^T K \boldsymbol{g},
+\frac{1}{ \sigma^2}(\boldsymbol{y} - \boldsymbol{g})^T (\boldsymbol{y} - \boldsymbol{g}) + \lambda \boldsymbol{g}^T K \boldsymbol{g},
 \end{equation}
 
 \pause
@@ -171,15 +171,13 @@ R = \mbox{\scriptsize $\begin{bmatrix}
 
 \begin{itemize}
 
-\pause
-\item $\textbf{Problem 1}:$ This ARIMA(0,2,1) interpretation requires covariate values to be equally spaced. Not directly applicable to irregular spaced locations.
 
 \pause
-\item $\textbf{Problem 2}:$ $R^{-1}$ is a dense matrix, and hence the precision matrix of $\boldsymbol{g}$ is dense as well. Computation will be hard and not compatible with inference method such as Integrated Nested Laplace Approximation(INLA) \citep{inla}.
+\item $\textbf{Problem}:$ $R^{-1}$ is a dense matrix, and hence the precision matrix of $\boldsymbol{g}$ is dense as well. Computation will be hard and not compatible with inference method such as Integrated Nested Laplace Approximation(INLA) \citep{inla}.
 \end{itemize}
 
 \pause
-\textbf{Alternative:} Extended Second Order Random Walk (RW2). 
+\textbf{Therefore:} Extended Second Order Random Walk (RW2). 
 
 \end{frame}
 
@@ -351,7 +349,7 @@ where $\{\theta_k, \delta_k\}_{k=1}^K$ is a set of $K$ nodes and weights selecte
          \subfigure[Random effect $f_{np}$]{
       \includegraphics[width=0.45\textwidth]{1990_RW2_fnp.pdf}
     }
-     \caption{Inference obtained for the CO2 dataset using RW2, for observations after year 1990.}
+     \caption{\fontsize{7}{11}\selectfont Inference for CO2 dataset using RW2, for observations after 1990 (Blue points: actual observations; Black line: posterior mean; Orange line: 95 percent credible interval).}
     \label{fig:realdata_1990}
 \end{figure}
 \end{frame}
@@ -363,15 +361,29 @@ where $\{\theta_k, \delta_k\}_{k=1}^K$ is a set of $K$ nodes and weights selecte
      \subfigure[Posterior for the smoothing parameter $\sigma_s$]{
       \includegraphics[width=0.39\textwidth]{1990_RW2_Hyper1.pdf}
     }
-         \subfigure[Posterior for the variance parameter $\sigma_\epsilon$]{
+         \subfigure[Posterior for the variance parameter $\sigma$]{
       \includegraphics[width=0.39\textwidth]{1990_RW2_Hyper2.pdf}
     }
-     \caption{Inference for smoothing/variance parameters with PC prior \citep{simpson2017penalising} with median 2.}
+     \caption{\fontsize{8}{11}\selectfont Inference for smoothing/variance parameters with PC prior \citep{simpson2017penalising} with median 2 (Solid line: Posterior; Dashed line: Prior).}
     \label{fig:realdata_1990_2}
 \end{figure}
 \end{frame}
 
+\begin{frame}
+\textbf{Comparing RW2 with ARIMA}
 
+\begin{figure}[p]
+    \centering
+         \subfigure[$f_{np}$ using RW2]{
+      \includegraphics[width=0.45\textwidth]{2010_g_RW2.pdf}
+    }
+         \subfigure[$f_{np}$ using ARIMA]{
+      \includegraphics[width=0.45\textwidth]{2010_g_ARIMA.pdf}
+    }
+     \caption{\fontsize{9}{11}\selectfont Inferences for $f_{np}$ obtained using each method (Black line: posterior mean; Orange line: 95 percent credible interval; Pink lines: Posterior sample paths). }
+    \label{fig:comparingTwoG_realdata}
+\end{figure}
+\end{frame}
 
 \begin{frame}
 \textbf{What about the derivatives?}
@@ -384,8 +396,27 @@ where $\{\theta_k, \delta_k\}_{k=1}^K$ is a set of $K$ nodes and weights selecte
          \subfigure[$f'_{np}$ using ARIMA]{
       \includegraphics[width=0.45\textwidth]{2010_ARIMA_1st.pdf}
     }
+    \caption{\fontsize{9}{11}\selectfont Inferences for $f'_{np}$ obtained using each method (Black line: posterior mean; Orange line: 95 percent credible interval; Pink lines: Posterior sample paths). }
+    \label{fig:comparingTwoG1st_realdata}
+\end{figure}
+\end{frame}
 
-    \label{fig:sim1-1replic}
+
+
+
+\begin{frame}
+\textbf{Zoom in a bit more:}
+
+\begin{figure}[p]
+    \centering
+         \subfigure[$f'_{np}$ using RW2]{
+      \includegraphics[width=0.45\textwidth]{2010_1st_zoomed_rw2.pdf}
+    }
+         \subfigure[$f'_{np}$ using ARIMA]{
+      \includegraphics[width=0.45\textwidth]{2010_1st_zoomed_arima.pdf}
+    }
+    \caption{\fontsize{9}{11}\selectfont Inferences for $f'_{np}$ obtained using each method (Black line: posterior mean; Orange line: 95 percent credible interval; Pink lines: Posterior sample paths). }
+    \label{fig:comparingTwoG1st_realdata_zoomed}
 \end{figure}
 \end{frame}
 
@@ -419,7 +450,7 @@ where $\{\theta_k, \delta_k\}_{k=1}^K$ is a set of $K$ nodes and weights selecte
 \begin{frame}
 \begin{itemize}
 
-\item We provide an overview of the extended second order random walk method \citep{rw2}, as well as its connection with the smoothing spline \citep{wahba} and the ARIMA prior \citep{ARIMA}.
+\item We provide an overview of the extended second order random walk method \citep{rw2}, as well as its connection with the smoothing spline \citep{wahba} and the ARIMA prior.
 
 \pause
 
